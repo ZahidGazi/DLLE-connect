@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'data_service.dart';
-import 'event_model.dart';
+import '../services/supabase_service.dart';
 import 'login_screen.dart';
-import 'user_model.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -13,123 +11,178 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController nameController = TextEditingController();
-  final TextEditingController idController = TextEditingController();
+  final TextEditingController identifierController = TextEditingController(); // ID or Email
   final TextEditingController deptController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  
+  String selectedRole = 'student'; // Default role
+  bool isLoading = false;
 
-  void signup() {
+  void signup() async {
     final name = nameController.text.trim();
-    final id = idController.text.trim();
+    final identifier = identifierController.text.trim();
     final dept = deptController.text.trim();
+    final password = passwordController.text.trim();
 
-    if (name.isEmpty || id.isEmpty || dept.isEmpty) {
+    if (name.isEmpty || identifier.isEmpty || dept.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill all fields")),
       );
       return;
     }
 
-    // 🔴 CHECK DUPLICATE ID
-    final existingStudent = DataService.instance.students
-        .any((s) => s.id == id);
+    if (selectedRole == 'student') {
+      if (identifier.length < 5 || !RegExp(r'^[0-9]+$').hasMatch(identifier)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Student ID must be at least 5 digits")),
+        );
+        return;
+      }
+    } else {
+      // Basic email validation for admin
+      if (!identifier.contains('@') || !identifier.contains('.')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please enter a valid email address")),
+        );
+        return;
+      }
+    }
 
-    if (existingStudent) {
+    if (password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Student ID already exists")),
+        const SnackBar(content: Text("Password must be at least 6 characters")),
       );
       return;
     }
 
-    // ✅ CREATE STUDENT
-    final newStudent = Student(
-      name: name,
-      id: id,
-      department: dept,
-    );
+    setState(() => isLoading = true);
 
-    DataService.instance.students.add(newStudent);
+    try {
+      await SupabaseService.signUp(
+        identifier: identifier,
+        password: password,
+        name: name,
+        department: dept,
+        role: selectedRole,
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Signup successful. Please login.")),
-    );
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Signup successful. Please login.")),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Signup failed: ${e.toString()}")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
-
       appBar: AppBar(
         title: const Text("Sign Up"),
         centerTitle: true,
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             const Text(
-              "Create Student Account",
+              "Create Account",
               style: TextStyle(
                 color: Colors.black,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 20),
+            
+            // -------- ROLE SELECTION --------
+            Row(
+              children: [
+                const Text("Role:", style: TextStyle(color: Colors.black, fontSize: 16)),
+                const SizedBox(width: 20),
+                ChoiceChip(
+                  label: const Text("Student"),
+                  selected: selectedRole == 'student',
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        selectedRole = 'student';
+                        identifierController.clear();
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(width: 10),
+                ChoiceChip(
+                  label: const Text("Admin"),
+                  selected: selectedRole == 'admin',
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        selectedRole = 'admin';
+                        identifierController.clear();
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 30),
-
-            // -------- NAME --------
             inputField(nameController, "Full Name"),
-
             const SizedBox(height: 16),
-
-            // -------- ID --------
-            inputField(idController, "Student ID"),
-
+            inputField(
+              identifierController, 
+              selectedRole == 'student' ? "Student ID (Min 5 digits)" : "Admin Email",
+              keyboardType: selectedRole == 'student' ? TextInputType.number : TextInputType.emailAddress,
+            ),
             const SizedBox(height: 16),
-
-            // -------- DEPARTMENT --------
-            inputField(deptController, "Course"),
-
+            inputField(deptController, selectedRole == 'student' ? "Course" : "Department"),
+            const SizedBox(height: 16),
+            inputField(passwordController, "Password", isPassword: true),
             const SizedBox(height: 30),
 
-            // -------- SIGNUP BUTTON --------
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: signup,
+                onPressed: isLoading ? null : signup,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
                 ),
-                child: const Text(
-                  "SIGN UP",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        "SIGN UP",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
-
             const SizedBox(height: 16),
-
             Center(
               child: TextButton(
                 onPressed: () {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const LoginScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
                   );
                 },
                 child: const Text(
@@ -144,16 +197,17 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // -------- INPUT FIELD --------
-  Widget inputField(TextEditingController controller, String hint) {
+  Widget inputField(TextEditingController controller, String hint, {bool isPassword = false, TextInputType keyboardType = TextInputType.text}) {
     return TextField(
       controller: controller,
-      style: const TextStyle(color: Colors.white),
+      obscureText: isPassword,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.black),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white54),
+        hintStyle: const TextStyle(color: Colors.black45),
         filled: true,
-        fillColor: const Color(0xFF1F2933),
+        fillColor: const Color(0xFFF1F1F1),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
