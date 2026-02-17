@@ -30,8 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     // simple role logic
-    final bool isCoordinator =
-    idController.text.startsWith("C");
+    final bool isCoordinator = idController.text.startsWith("C");
 
     Navigator.pushReplacement(
       context,
@@ -46,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
+      backgroundColor: const Color(0xFFFFFFFF),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -54,10 +53,22 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
 
+              // -------- ADDED IMAGE HERE --------
+              // Make sure 'assets/login_image.png' exists in your assets folder
+              SizedBox(
+                height: 150, // Adjust height as needed
+                child: Image.asset(
+                  'assets/login_image.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
               const Text(
                 "Welcome to DLLE Connect",
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.black,
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                 ),
@@ -67,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const Text(
                 "Sign in to continue",
-                style: TextStyle(color: Colors.white70),
+                style: TextStyle(color: Colors.black),
               ),
 
               const SizedBox(height: 40),
@@ -102,6 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: const Text(
                     "LOGIN",
                     style: TextStyle(
+                      color: Colors.white70,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -124,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text(
                   "New user? Sign up",
                   style: TextStyle(
-                    color: Colors.lightBlueAccent,
+                    color: Colors.black,
                   ),
                 ),
               ),

@@ -17,7 +17,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
   // Dummy past announcements
   final List<Map<String, String>> pastAnnouncements = [
     {
-      "title": "Important Update: Campus Closure",
+      "title": "fgf",
       "date": "2024-07-25",
       "image": "https://via.placeholder.com/400x200"
     },
@@ -48,11 +48,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
   Widget build(BuildContext context) {
     final announcements = DataService.instance.announcements;
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
-
       appBar: AppBar(
         title: const Text("Announcements"),
-        backgroundColor: const Color(0xFF0D1117),
         elevation: 0,
       ),
 

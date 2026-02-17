@@ -58,7 +58,10 @@ class _EditEventScreenState extends State<EditEventScreen> {
                     description: descController.text,
                     Location: locationController.text,
                     date: widget.event.date,
+                    eventdate: widget.event.eventdate,
                     hours: int.parse(hoursController.text),
+                    starttime: widget.event.starttime,
+                    endtime: widget.event.endtime,
                     joined: widget.event.joined,
                     completed: widget.event.completed,
                   );

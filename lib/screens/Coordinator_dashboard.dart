@@ -1,4 +1,5 @@
 import 'package:app/screens/admin_announcement.dart';
+import 'package:app/screens/admin_setting%20screen.dart';
 import 'package:app/screens/events_screen.dart';
 import 'package:app/screens/manage_events.dart';
 import 'package:flutter/material.dart';
@@ -10,24 +11,16 @@ class CoordinatorDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF020202),
-
       appBar: AppBar(
-        backgroundColor: const Color(0xFF020202),
         elevation: 0,
         title: const Text(
           "Dashboard",
-          style: TextStyle(color: Colors.white),
         ),
         centerTitle: true,
         leading: const Padding(
           padding: EdgeInsets.all(8.0),
-          child: CircleAvatar(
-            backgroundColor: Colors.grey,
-            child: Icon(Icons.person, color: Colors.white),
           ),
         ),
-      ),
 
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -38,7 +31,6 @@ class CoordinatorDashboardScreen extends StatelessWidget {
             const Text(
               "Manage",
               style: TextStyle(
-                color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -78,7 +70,7 @@ class CoordinatorDashboardScreen extends StatelessWidget {
 
                 DashboardCard(
                   icon: Icons.event,
-                  title: "Manage Events", onTap: () {
+                  title: "Create Event", onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const ManageEventsScreen()),
@@ -88,7 +80,12 @@ class CoordinatorDashboardScreen extends StatelessWidget {
 
                 DashboardCard(
                   icon: Icons.settings,
-                  title: "Settings", onTap: () {  },
+                  title: "Settings", onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminSettingsScreen()),
+                    );
+                },
                 ),
               ],
             ),
@@ -131,7 +128,6 @@ class DashboardCard extends StatelessWidget {
               backgroundColor: Colors.blue.withOpacity(0.15),
               child: Icon(
                 icon,
-                color: Colors.blueAccent,
                 size: 28,
               ),
             ),

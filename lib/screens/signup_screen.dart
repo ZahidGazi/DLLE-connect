@@ -61,7 +61,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
+      backgroundColor: const Color(0xFFFFFFFF),
 
       appBar: AppBar(
         title: const Text("Sign Up"),
@@ -77,7 +77,7 @@ class _SignupScreenState extends State<SignupScreen> {
             const Text(
               "Create Student Account",
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.black,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -96,7 +96,7 @@ class _SignupScreenState extends State<SignupScreen> {
             const SizedBox(height: 16),
 
             // -------- DEPARTMENT --------
-            inputField(deptController, "Department"),
+            inputField(deptController, "Course"),
 
             const SizedBox(height: 30),
 
@@ -112,6 +112,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 child: const Text(
                   "SIGN UP",
                   style: TextStyle(
+                    color: Colors.white70,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
@@ -133,7 +134,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 },
                 child: const Text(
                   "Already have an account? Login",
-                  style: TextStyle(color: Colors.lightBlueAccent),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
             ),

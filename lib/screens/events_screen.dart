@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'data_service.dart';     // correct path
-import 'event_details.dart';        // correct file import
+import 'data_service.dart';
+import 'event_model.dart';
+import 'event_details.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -14,99 +17,101 @@ class _EventsScreenState extends State<EventsScreen> {
   Widget build(BuildContext context) {
     final events = DataService.instance.events;
 
+    // ✅ Get Theme Colors
+    final cardColor = Theme.of(context).cardTheme.color;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
+    final subTextColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+       appBar: AppBar(title: const Text("Events")),
 
-      appBar: AppBar(
-        title: const Text("Events"),
-        backgroundColor: const Color(0xFF0D1117),
-      ),
-
-      body: ListView.builder(
+      body: events.isEmpty
+          ? Center(
+        child: Text(
+          "No events available",
+          style: TextStyle(color: subTextColor),
+        ),
+      )
+          : ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: events.length,
         itemBuilder: (context, index) {
-          final e = events[index];
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1F2933),
-              borderRadius: BorderRadius.circular(14),
-            ),
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                Text(
-                  e.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+          final event = events[index];
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EventDetailsScreen(event: event),
                 ),
-
-                const SizedBox(height: 8),
-
-                // Details
-                Text("Date: ${e.date}",
-                    style: const TextStyle(color: Colors.white70)),
-                Text("Hours: ${e.hours}",
-                    style: const TextStyle(color: Colors.white70)),
-
-                const SizedBox(height: 16),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // JOIN BUTTON
-                    ElevatedButton(
-                      onPressed: e.joined
-                          ? null
-                          : () {
-                        setState(() {
-                          e.joined = true;
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                        e.joined ? Colors.grey : Colors.blue,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 22, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      child: Text(
-                        e.joined ? "Joined" : "Join",
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-
-                    // VIEW DETAILS BUTTON
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => EventDetailsScreen(event: e),
+              ).then((_) => setState(() {})); // Refresh on back
+            },
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                // ✅ DYNAMIC COLOR: Changes based on mode
+                color: cardColor,
+                borderRadius: BorderRadius.circular(16),
+                // Add shadow ONLY in light mode for depth
+                boxShadow: isDarkMode ? [] : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+                border: isDarkMode
+                    ? Border.all(color: Colors.white10)
+                    : Border.all(color: Colors.black12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // -------- CONTENT SECTION --------
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          event.title,
+                          style: TextStyle(
+                            color: textColor, // Dynamic Text Color
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
-                        );
-                      },
-                      child: const Text(
-                        "View Details",
-                        style: TextStyle(
-                          color: Colors.lightBlueAccent,
-                          fontSize: 14,
                         ),
-                      ),
+                        const SizedBox(height: 1),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            // VIEW DETAILS BUTTON
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => EventDetailsScreen(event: event),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                "View Details",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 1),
+                      ],
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           );
         },

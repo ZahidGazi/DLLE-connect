@@ -35,11 +35,8 @@ void initstate (){
     final announcements = DataService.instance.announcements;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
-
       appBar: AppBar(
         title: const Text("Announcements"),
-        backgroundColor: const Color(0xFF0D1117),
         elevation: 0,
         centerTitle: true,
       ),
@@ -48,7 +45,6 @@ void initstate (){
           ? const Center(
         child: Text(
           "No announcements available",
-          style: TextStyle(color: Colors.white54),
         ),
       )
           : ListView.builder(
