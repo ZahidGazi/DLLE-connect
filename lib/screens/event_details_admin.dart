@@ -68,7 +68,7 @@ class _AdminEventDetailsScreenState extends State<AdminEventDetailsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              "📍 ${widget.event.Location}",
+              "📍 ${widget.event.location}",
               style: const TextStyle(color: Colors.white70),
             ),
             Text(

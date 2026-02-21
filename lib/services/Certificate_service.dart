@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart'; // For loading assets
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';

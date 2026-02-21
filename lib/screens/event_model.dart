@@ -3,7 +3,7 @@ class EventItem {
   String title;
   String date;
   final DateTime eventdate;
-  String Location;
+  String location;
   int hours;
   String description;
   final String starttime;
@@ -24,7 +24,7 @@ class EventItem {
     required this.title,
     required this.date,
     required this.eventdate,
-    required this.Location,
+    required this.location,
     required this.hours,
     required this.description,
     required this.starttime,
@@ -45,7 +45,7 @@ class EventItem {
       title: map['title'],
       date: map['date_str'] ?? '',
       eventdate: DateTime.parse(map['event_date']),
-      Location: map['location'] ?? '',
+      location: map['location'] ?? '',
       hours: map['hours'] ?? 0,
       description: map['description'] ?? '',
       starttime: map['start_time'] ?? '',
@@ -61,7 +61,7 @@ class EventItem {
       'title': title,
       'date_str': date,
       'event_date': eventdate.toIso8601String(),
-      'location': Location,
+      'location': location,
       'hours': hours,
       'description': description,
       'start_time': starttime,

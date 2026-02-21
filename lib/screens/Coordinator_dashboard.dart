@@ -1,6 +1,6 @@
-import 'package:app/screens/admin_announcement.dart';
-import 'package:app/screens/admin_setting screen.dart';
-import 'package:app/screens/manage_events.dart';
+import 'package:dlle_connect/screens/admin_announcement.dart';
+import 'package:dlle_connect/screens/admin_setting_screen.dart';
+import 'package:dlle_connect/screens/manage_events.dart';
 import 'package:flutter/material.dart';
 import 'manage_stu_screen.dart';
 
@@ -112,7 +112,7 @@ class DashboardCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2933),
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
       ),
       child: InkWell(
@@ -135,8 +135,8 @@ class DashboardCard extends StatelessWidget {
 
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyLarge?.color,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),

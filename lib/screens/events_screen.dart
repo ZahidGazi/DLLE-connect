@@ -1,8 +1,5 @@
-import 'dart:io';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'data_service.dart';
-import 'event_model.dart';
 import 'event_details.dart';
 
 class EventsScreen extends StatefulWidget {

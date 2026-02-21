@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'event_model.dart';
 import 'notification_model.dart';
-import 'user_model.dart';
 import 'announcement_model.dart';
 
 class DataService {
@@ -99,7 +97,25 @@ class DataService {
     required String newPassword,
   }) async {
     try {
-      final email = "$studentId@dlle.com";
+      // Look up the real email from the users table using the student identifier
+      String email;
+      try {
+        final userData = await _supabase
+            .from('users')
+            .select('email')
+            .eq('identifier', studentId)
+            .maybeSingle();
+        if (userData != null && userData['email'] != null) {
+          email = userData['email'];
+        } else {
+          // Fallback for older accounts that might still use synthetic emails
+          email = "$studentId@dlle.com";
+        }
+      } catch (e) {
+        // Fallback for older accounts
+        email = "$studentId@dlle.com";
+      }
+
       await _supabase.auth.signInWithPassword(
         email: email,
         password: oldPassword,

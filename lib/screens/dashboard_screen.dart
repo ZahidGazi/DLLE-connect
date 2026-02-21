@@ -60,7 +60,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget navItem(IconData icon, String label, int index) {
     final selected = _currentIndex == index;
-    final color = selected ? Colors.blueAccent : Colors.black;
     return GestureDetector(
       onTap: () {
         setState(() => _currentIndex = index);
@@ -282,7 +281,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                         children: [
                           Text(
                             count.toString(),
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 4),
                           Container(
@@ -296,7 +295,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                           const SizedBox(height: 8),
                           Text(
                             month,
-                            style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6), fontSize: 12),
                           ),
                         ],
                       );
@@ -411,13 +410,13 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(event.title,
-                    style: const TextStyle(color: Colors.white, fontSize: 14)),
+                    style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 14)),
                 const SizedBox(height: 4),
                 Text(event.date,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                    style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6), fontSize: 12)),
               ],
             ),
-            const Icon(Icons.arrow_forward_ios, color: Colors.black, size: 16),
+            Icon(Icons.arrow_forward_ios, color: Theme.of(context).iconTheme.color, size: 16),
           ],
         ),
       ),
@@ -448,10 +447,10 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(event.title,
-                    style: const TextStyle(color: Colors.white, fontSize: 14)),
+                    style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 14)),
                 const SizedBox(height: 4),
                 Text(event.date,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                    style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6), fontSize: 12)),
               ],
             ),
             Text("+${event.hours} Hours",
@@ -483,7 +482,7 @@ class EventListScreen extends StatelessWidget {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: Text(title)),
       body: events.isEmpty
-          ? const Center(child: Text("No events found", style: TextStyle(color: Colors.white54)))
+          ? Center(child: Text("No events found", style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5))))
           : ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: events.length,
@@ -506,15 +505,15 @@ class EventListScreen extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(event.title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(event.title, style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text(event.date, style: const TextStyle(color: Colors.white70)),
+                      Text(event.date, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7))),
                     ],
                   ),
                   if (event.completed)
                     Text("+${event.hours} Hrs", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold))
                   else
-                    const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white54),
+                    Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5)),
                 ],
               ),
             ),

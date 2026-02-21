@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'event_model.dart';
-import 'user_model.dart';
 
 class EventParticipationScreen extends StatefulWidget {
   final EventItem event;

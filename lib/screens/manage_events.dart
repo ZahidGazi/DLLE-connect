@@ -55,7 +55,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       _editingEvent = event;
       titleController.text = event.title;
       descController.text = event.description;
-      locationController.text = event.Location;
+      locationController.text = event.location;
       hoursController.text = event.hours.toString();
       startDate = event.eventdate;
       endDate = event.eventdate;
@@ -160,7 +160,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                     final event = EventItem(
                       title: titleController.text,
                       description: descController.text,
-                      Location: locationController.text,
+                      location: locationController.text,
                       date: dateStr,
                       hours: int.parse(hoursController.text),
                       imagepath: _selectedImage?.path,
@@ -174,7 +174,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       id: _editingEvent!.id,
                       title: titleController.text,
                       description: descController.text,
-                      Location: locationController.text,
+                      location: locationController.text,
                       date: dateStr,
                       hours: int.parse(hoursController.text),
                       imagepath: _selectedImage?.path,

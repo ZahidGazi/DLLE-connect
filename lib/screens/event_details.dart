@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'data_service.dart';
 import 'event_model.dart';
 
 class EventDetailsScreen extends StatefulWidget {
@@ -62,7 +61,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               children: [
                 const Icon(Icons.location_on, size: 16),
                 const SizedBox(width: 6),
-                Text(widget.event.Location),
+                Text(widget.event.location),
               ],
             ),
             const SizedBox(height: 20),

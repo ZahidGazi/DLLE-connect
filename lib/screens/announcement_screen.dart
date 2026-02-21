@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
-import 'announcement_model.dart';
 
 class StudentAnnouncementScreen extends StatefulWidget {
   const StudentAnnouncementScreen({super.key});

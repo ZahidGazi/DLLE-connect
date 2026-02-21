@@ -22,7 +22,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
     super.initState();
     titleController = TextEditingController(text: widget.event.title);
     descController = TextEditingController(text: widget.event.description);
-    locationController = TextEditingController(text: widget.event.Location);
+    locationController = TextEditingController(text: widget.event.location);
     hoursController =
         TextEditingController(text: widget.event.hours.toString());
   }
@@ -54,7 +54,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
                     id: widget.event.id,
                     title: titleController.text,
                     description: descController.text,
-                    Location: locationController.text,
+                    location: locationController.text,
                     date: widget.event.date,
                     eventdate: widget.event.eventdate,
                     hours: int.parse(hoursController.text),
