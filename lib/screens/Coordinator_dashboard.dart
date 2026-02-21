@@ -1,6 +1,5 @@
 import 'package:app/screens/admin_announcement.dart';
-import 'package:app/screens/admin_setting%20screen.dart';
-import 'package:app/screens/events_screen.dart';
+import 'package:app/screens/admin_setting screen.dart';
 import 'package:app/screens/manage_events.dart';
 import 'package:flutter/material.dart';
 import 'manage_stu_screen.dart';

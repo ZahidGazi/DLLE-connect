@@ -95,6 +95,25 @@ class DashboardHomeContent extends StatefulWidget {
 }
 // ... (Paste the rest of DashboardHomeContent logic here)
 class _DashboardHomeContentState extends State<DashboardHomeContent> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+    await DataService.instance.fetchEvents();
+    await DataService.instance.fetchAnnouncements();
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
   // -------- DATA PROCESSING FOR GRAPH --------
   Map<String, int> getMonthlyJoinedData() {
     final joinedEvents = DataService.instance.joinedEvents;
@@ -115,10 +134,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
   }
 
   Future<void> _handleRefresh() async {
-    await Future.delayed(const Duration(milliseconds: 1500));
-    if (mounted) {
-      setState(() {});
-    }
+    await _loadData();
   }
 
   // -------- NAVIGATION HELPER --------
@@ -133,6 +149,17 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: const Text("Dashboard"),
+          automaticallyImplyLeading: false,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final data = DataService.instance;
     final joinedEvents = data.joinedEvents;
     final completedEvents = data.completedEvents;

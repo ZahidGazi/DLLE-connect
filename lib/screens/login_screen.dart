@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'coordinator_dashboard.dart';
 import 'data_service.dart';
 import 'dashboard_screen.dart';
@@ -30,13 +31,23 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (selectedRole == 'student') {
-      if (identifier.length < 5 || !RegExp(r'^[0-9]+$').hasMatch(identifier)) {
+      final isEmail = identifier.contains('@');
+      final isNumeric = RegExp(r'^[0-9]+$').hasMatch(identifier);
+
+      if (!isEmail && !isNumeric) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please enter a valid Student ID (min 5 digits)")),
+          const SnackBar(content: Text("Please enter a valid Student ID or Email")),
+        );
+        return;
+      } 
+
+      if (!isEmail && identifier.length < 5) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Student ID must be at least 5 digits")),
         );
         return;
       }
-    } else {
+    } else if (selectedRole == 'admin') {
       if (!identifier.contains('@')) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please enter a valid Admin Email")),
@@ -56,11 +67,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final user = response.user;
       if (user != null) {
-        final metadata = user.userMetadata;
-        final actualRole = metadata?['role'] ?? 'student';
-        final name = metadata?['full_name'] ?? 'User';
+        // Fetch actual role from the 'users' table in the database
+        final userData = await Supabase.instance.client
+            .from('users')
+            .select('role, full_name, identifier')
+            .eq('id', user.id)
+            .maybeSingle();
 
-        // Check if the user is logging in with the correct role
+        final actualRole = userData?['role'] ?? 'student';
+        
         if (actualRole != selectedRole) {
           await SupabaseService.signOut();
           if (mounted) {
@@ -71,8 +86,24 @@ class _LoginScreenState extends State<LoginScreen> {
           return;
         }
 
-        // Update local DataService session
-        await DataService.instance.login(name, identifier);
+        String finalIdentifier = identifier;
+        if (selectedRole == 'student' && identifier.contains('@')) {
+          finalIdentifier = userData?['identifier'] ?? identifier;
+        }
+
+        if (actualRole == 'student') {
+          await DataService.instance.login(finalIdentifier);
+        } else {
+          DataService.instance.updateProfile(
+            name: userData?['full_name'] ?? identifier,
+            id: identifier,
+            course: 'Admin',
+          );
+          await DataService.instance.saveLoginSession(identifier);
+          DataService.instance.isLoggedIn = true;
+          DataService.instance.studentId = identifier;
+          DataService.instance.studentName = userData?['full_name'] ?? identifier;
+        }
 
         if (mounted) {
           Navigator.pushReplacement(
@@ -89,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         String errorMessage = e.toString();
         if (errorMessage.contains("Invalid login credentials")) {
-          errorMessage = "Incorrect ID/Email or Password";
+          errorMessage = "Incorrect Credentials or Password";
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
@@ -135,7 +166,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 30),
 
-              // -------- ROLE SELECTION --------
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -168,19 +198,16 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
               
-              // -------- ID / EMAIL --------
               inputField(
                 identifierController, 
-                selectedRole == 'student' ? "Student ID" : "Admin Email",
-                keyboardType: selectedRole == 'student' ? TextInputType.number : TextInputType.emailAddress,
+                selectedRole == 'student' ? "Student ID or Email" : "Admin Email",
+                keyboardType: selectedRole == 'student' ? TextInputType.text : TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
               
-              // -------- PASSWORD --------
               inputField(passwordController, "Password", isPassword: true),
               const SizedBox(height: 30),
 
-              // -------- LOGIN BUTTON --------
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -202,23 +229,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // -------- SIGNUP --------
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SignupScreen(),
-                    ),
-                  );
-                },
-                child: const Text(
-                  "New user? Sign up",
-                  style: TextStyle(
-                    color: Colors.black,
+              if (selectedRole == 'student')
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SignupScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "New student? Sign up",
+                    style: TextStyle(color: Colors.black),
                   ),
                 ),
-              ),
             ],
           ),
         ),

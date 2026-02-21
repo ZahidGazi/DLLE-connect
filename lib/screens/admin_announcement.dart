@@ -152,14 +152,14 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                           setState(() {});
                         },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: Colors.white70,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: const Text(
                         "Post Announcement",
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 16,color: Colors.black),
                       ),
                     ),
                   ),

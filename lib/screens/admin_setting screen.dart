@@ -11,9 +11,16 @@ class AdminSettingsScreen extends StatefulWidget {
 
 class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   final _newIdController = TextEditingController();
-  // -------- CHANGE ID LOGIC --------
+  late bool darkModeEnabled;
+
+  @override
+  void initState() {
+    super.initState();
+    darkModeEnabled = DataService.instance.isDarkMode;
+  }
+
   void _showChangeIdDialog() {
-    _newIdController.text = DataService.instance.adminName; // Pre-fill current ID
+    _newIdController.text = DataService.instance.adminName;
 
     showDialog(
       context: context,
@@ -37,14 +44,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             ElevatedButton(
               onPressed: () {
                 if (_newIdController.text.isNotEmpty) {
-                  setState(() {
-                    // ✅ Update the ID in DataService
-                    DataService.instance.adminName = _newIdController.text;
+                  // Use the new setter method
+                  DataService.instance.setAdminName(_newIdController.text).then((_) {
+                    setState(() {}); // Rebuild to show the new name
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Admin ID Updated Successfully!"), backgroundColor: Colors.green),
+                    );
                   });
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Admin ID Updated Successfully!"), backgroundColor: Colors.green),
-                  );
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
@@ -88,8 +95,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-
-          // -------- 1. ADMIN PROFILE CARD --------
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -108,7 +113,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ✅ Displays Dynamic Admin Name from Login Data
                       Text(
                         data.adminName.isNotEmpty ? data.adminName : "Admin User",
                         style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold),
@@ -128,23 +132,32 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               ],
             ),
           ),
-
           const SizedBox(height: 24),
-
-          // -------- 2. ACCOUNT SETTINGS --------
           _sectionHeader("Account", subTextColor),
-
-          // ✅ "Change ID" replaces "Change Password"
           _settingsTile(
             icon: Icons.badge,
             title: "Change ID",
             color: Colors.orangeAccent,
             onTap: _showChangeIdDialog,
           ),
-
+          const SizedBox(height: 24),
+          _sectionHeader("App Settings", subTextColor),
+          _settingsTile(
+            icon: Icons.dark_mode,
+            title: "Dark Mode",
+            color: Colors.blueAccent,
+            trailing: Switch(
+              value: darkModeEnabled,
+              onChanged: (value) {
+                setState(() {
+                  darkModeEnabled = value;
+                  DataService.instance.toggleTheme(value);
+                });
+              },
+              activeColor: Colors.blueAccent,
+            ),
+          ),
           const SizedBox(height: 40),
-
-          // -------- 3. LOGOUT BUTTON --------
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -173,7 +186,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 20),
           Center(
             child: Text(
@@ -186,7 +198,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     );
   }
 
-  // -------- HELPER WIDGETS --------
   Widget _sectionHeader(String title, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10, left: 4),
@@ -201,6 +212,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     required IconData icon,
     required String title,
     required Color color,
+    Widget? trailing,
     VoidCallback? onTap
   }) {
     final cardColor = Theme.of(context).cardTheme.color;
@@ -223,7 +235,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           child: Icon(icon, color: color, size: 20),
         ),
         title: Text(title, style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
-        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.withOpacity(0.5)),
+        trailing: trailing ?? Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.withOpacity(0.5)),
       ),
     );
   }

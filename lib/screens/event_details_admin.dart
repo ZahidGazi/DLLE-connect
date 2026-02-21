@@ -4,17 +4,48 @@ import 'edit_event.dart';
 import 'event_model.dart';
 import 'joined_stu_screen.dart';
 
-class AdminEventDetailsScreen extends StatelessWidget {
+class AdminEventDetailsScreen extends StatefulWidget {
   final EventItem event;
 
   const AdminEventDetailsScreen({super.key, required this.event});
 
   @override
+  State<AdminEventDetailsScreen> createState() => _AdminEventDetailsScreenState();
+}
+
+class _AdminEventDetailsScreenState extends State<AdminEventDetailsScreen> {
+  List<Student> _joinedStudents = [];
+  List<Student> _completedStudents = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStudents();
+  }
+
+  Future<void> _loadStudents() async {
+    if (widget.event.id == null) return;
+    
+    final joined = await DataService.instance.getStudentsJoinedEvent(widget.event.id!);
+    final completed = await DataService.instance.getStudentsCompletedEvent(widget.event.id!);
+    
+    if (mounted) {
+      setState(() {
+        _joinedStudents = joined;
+        _completedStudents = completed;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final joinedStudents =
-    DataService.instance.getStudentsJoinedEvent(event);
-    final completedStudents =
-    DataService.instance.getStudentsCompletedEvent(event);
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
@@ -22,42 +53,33 @@ class AdminEventDetailsScreen extends StatelessWidget {
         title: const Text("Event Details"),
         centerTitle: true,
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            // -------- EVENT TITLE --------
             Text(
-              event.title,
+              widget.event.title,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
-              "📍 ${event.Location}",
+              "📍 ${widget.event.Location}",
               style: const TextStyle(color: Colors.white70),
             ),
-
             Text(
-              "📅 ${event.date}",
+              "📅 ${widget.event.date}",
               style: const TextStyle(color: Colors.white70),
             ),
-
             Text(
-              "⏱ ${event.hours} Hours",
+              "⏱ ${widget.event.hours} Hours",
               style: const TextStyle(color: Colors.white70),
             ),
-
             const SizedBox(height: 16),
-
             const Text(
               "Description",
               style: TextStyle(
@@ -66,26 +88,20 @@ class AdminEventDetailsScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 6),
-
             Text(
-              event.description,
+              widget.event.description,
               style: const TextStyle(color: Colors.white70),
             ),
-
             const SizedBox(height: 20),
-
-            // -------- ANALYTICS --------
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-
                 analyticsButton(
                   context: context,
                   icon: Icons.group,
                   label: "Joined",
-                  value: event.joinedcount.toString(),
+                  value: _joinedStudents.length.toString(),
                   color: Colors.orangeAccent,
                   onTap: () {
                     Navigator.push(
@@ -93,18 +109,17 @@ class AdminEventDetailsScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => EventStudentsScreen(
                           title: "Students Joined",
-                          students: joinedStudents,
+                          students: _joinedStudents,
                         ),
                       ),
                     );
                   },
                 ),
-
                 analyticsButton(
                   context: context,
                   icon: Icons.check_circle,
                   label: "Completed",
-                  value: event.completedcount.toString(),
+                  value: _completedStudents.length.toString(),
                   color: Colors.greenAccent,
                   onTap: () {
                     Navigator.push(
@@ -112,24 +127,21 @@ class AdminEventDetailsScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => EventStudentsScreen(
                           title: "Students Completed",
-                          students: completedStudents,
+                          students: _completedStudents,
                         ),
                       ),
                     );
                   },
                 ),
-
                 analyticsCard(
                   icon: Icons.timer,
                   label: "Total Hours",
-                  value:
-                  (event.completedcount * event.hours).toString(),
+                  value: (_completedStudents.length * widget.event.hours).toString(),
                   color: Colors.blueAccent,
                 ),
               ],
             ),
-
-            if (event.completed)
+            if (widget.event.completed)
               const Padding(
                 padding: EdgeInsets.only(top: 12),
                 child: Text(
@@ -140,10 +152,7 @@ class AdminEventDetailsScreen extends StatelessWidget {
                   ),
                 ),
               ),
-
             const SizedBox(height: 30),
-
-            // -------- EDIT BUTTON --------
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -151,26 +160,23 @@ class AdminEventDetailsScreen extends StatelessWidget {
                 icon: const Icon(Icons.edit),
                 label: const Text("Edit Event"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                  event.completed ? Colors.grey : Colors.orange,
+                  backgroundColor: widget.event.completed ? Colors.grey : Colors.orange,
                 ),
-                onPressed: event.completed
+                onPressed: widget.event.completed
                     ? null
                     : () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          EditEventScreen(event: event),
+                      builder: (_) => EditEventScreen(event: widget.event),
                     ),
-                  ).then((_) => Navigator.pop(context));
+                  ).then((_) {
+                    _loadStudents(); // Reload in case data changed
+                  });
                 },
               ),
             ),
-
             const SizedBox(height: 12),
-
-            // -------- DELETE BUTTON --------
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -178,45 +184,28 @@ class AdminEventDetailsScreen extends StatelessWidget {
                 icon: const Icon(Icons.delete),
                 label: const Text("Delete Event"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                  event.completed ? Colors.grey : Colors.redAccent,
+                  backgroundColor: widget.event.completed ? Colors.grey : Colors.redAccent,
                 ),
-                onPressed: event.completed
+                onPressed: widget.event.completed
                     ? null
                     : () {
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
-                      backgroundColor:
-                      const Color(0xFF1F2933),
-                      title: const Text(
-                        "Delete Event",
-                        style:
-                        TextStyle(color: Colors.white),
-                      ),
-                      content: const Text(
-                        "Are you sure you want to delete this event?",
-                        style: TextStyle(
-                            color: Colors.white70),
-                      ),
+                      backgroundColor: const Color(0xFF1F2933),
+                      title: const Text("Delete Event", style: TextStyle(color: Colors.white)),
+                      content: const Text("Are you sure you want to delete this event?", style: TextStyle(color: Colors.white70)),
                       actions: [
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(context),
-                          child: const Text("Cancel"),
-                        ),
+                        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
                         TextButton(
                           onPressed: () {
-                            DataService.instance
-                                .deleteEvent(event);
-                            Navigator.pop(context);
-                            Navigator.pop(context);
+                            if (widget.event.id != null) {
+                              DataService.instance.deleteEvent(widget.event.id!);
+                              Navigator.pop(context);
+                              Navigator.pop(context);
+                            }
                           },
-                          child: const Text(
-                            "Delete",
-                            style: TextStyle(
-                                color: Colors.redAccent),
-                          ),
+                          child: const Text("Delete", style: TextStyle(color: Colors.redAccent)),
                         ),
                       ],
                     ),
@@ -230,7 +219,6 @@ class AdminEventDetailsScreen extends StatelessWidget {
     );
   }
 
-  // -------- ANALYTICS BUTTON --------
   Widget analyticsButton({
     required BuildContext context,
     required IconData icon,
@@ -252,27 +240,13 @@ class AdminEventDetailsScreen extends StatelessWidget {
             child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-            ),
-          ),
+          Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
         ],
       ),
     );
   }
 
-  // -------- ANALYTICS CARD --------
   Widget analyticsCard({
     required IconData icon,
     required String label,
@@ -290,21 +264,8 @@ class AdminEventDetailsScreen extends StatelessWidget {
           child: Icon(icon, color: color, size: 28),
         ),
         const SizedBox(height: 6),
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-          ),
-        ),
+        Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
       ],
     );
   }

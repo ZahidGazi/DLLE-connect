@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'event_model.dart';
 import 'notification_model.dart';
@@ -9,17 +10,50 @@ import 'announcement_model.dart';
 
 class DataService {
   // ---------------- SINGLETON ----------------
-  DataService._privateConstructor();
+  DataService._privateConstructor() {
+    _loadAdminCredentials();
+  }
   static final DataService instance = DataService._privateConstructor();
-  // ---------------- THEME NOTIFIER (NEW) ----------------
-  // This notifies main.dart when the theme changes
-  final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
+  final _supabase = Supabase.instance.client;
+
+  // ---------------- THEME NOTIFIER ----------------
+  final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
   bool get isDarkMode => themeNotifier.value == ThemeMode.dark;
 
   void toggleTheme(bool isDark) {
     themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
-    // Save to preferences logic can go here
+  }
+
+  // ---------------- ADMIN ----------------
+  String adminName = "Admin";
+  String _adminPassword = "password";
+
+  Future<void> _loadAdminCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    adminName = prefs.getString('adminName') ?? "Admin";
+    _adminPassword = prefs.getString('adminPassword') ?? "password";
+  }
+
+  bool checkAdminPassword(String password) {
+    return password == _adminPassword;
+  }
+  
+  bool changeAdminPassword(String oldPassword, String newPassword) {
+    if (oldPassword == _adminPassword) {
+      _adminPassword = newPassword;
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('adminPassword', newPassword);
+      });
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> setAdminName(String name) async {
+    adminName = name;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('adminName', name);
   }
 
   // ---------------- LOGIN / SESSION ----------------
@@ -37,147 +71,188 @@ class DataService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('loggedInUser');
   }
+
   bool isLoggedIn = false;
   String studentName = "";
-  String studentId = "";
+  String studentId = ""; // This stores the 'identifier' from the users table
+  String studentCourse = "";
+  int totalHours = 0;
+  bool notificationEnabled = true;
 
-  Future<void> login(String name, String id) async {
+  Future<void> login(String identifier) async {
+    try {
+      final userData = await _supabase.from('users').select().eq('identifier', identifier).single();
+      studentName = userData['full_name'] ?? '';
+      studentId = userData['identifier'] ?? '';
+      studentCourse = userData['department'] ?? '';
+      isLoggedIn = true;
+      await saveLoginSession(identifier);
+      await fetchEvents(); // Load events for the logged in student
+      await getTotalHours(studentId); // Calculate and set totalHours
+    } catch (e) {
+      debugPrint("Login error: $e");
+    }
+  }
+
+  Future<String> changeStudentPasswordWithVerification({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final email = "$studentId@dlle.com";
+      await _supabase.auth.signInWithPassword(
+        email: email,
+        password: oldPassword,
+      );
+
+      await _supabase.auth.updateUser(UserAttributes(password: newPassword));
+      return "success";
+    } on AuthException catch (e) {
+      if (e.message.contains("Invalid login credentials")) {
+        return "Incorrect old password";
+      }
+      return e.message;
+    } catch (e) {
+      debugPrint("Error changing password: $e");
+      return "An error occurred. Please try again.";
+    }
+  }
+
+
+  void updateProfile({
+    required String name,
+    required String id,
+    required String course,
+  }) {
     studentName = name;
     studentId = id;
-    isLoggedIn = true;
-   await saveLoginSession(id);
+    studentCourse = course;
   }
 
   Future<void> logout() async {
     isLoggedIn = false;
     studentName = "";
     studentId = "";
+    studentCourse = "";
+    totalHours = 0;
     await clearLoginSession();
   }
 
-  // ---------------- PASSWORD ----------------
-  String adminPassword = "admin123"; // default password
-
-  bool changeAdminPassword(String oldPass, String newPass) {
-    if (oldPass != adminPassword) {
-      return false;
-    }
-    adminPassword = newPass;
-    return true;
-  }
-
-  //----------------Admin profile-----------------------
-  String adminName = "";
-
-  void updateAdminProfile(String name, String gmail) {
-    adminName = name;
-  }
-
   // ---------------- EVENTS ----------------
-  final List<EventItem> _events = [
-    EventItem(
-      title: "Tree Plantation Drive",
-      date: "25 July 2026",
-      hours: 5,
-      eventdate: DateTime (2026,7,25),
-      description: "Planting trees to improve environment.",
-      Location: "Mumbai, Maharashtra, India",
-      starttime: "10:00 AM",
-      endtime: "2:00 PM",
-      imagepath: "",
-      latitude: 19.0760,
-      longitude: 72.8777,
-    ),
-    EventItem(
-      title: "Beach Cleanup",
-      date: "15 February 2026",
-      eventdate: DateTime (2026,2,15),
-      hours: 4,
-      description: "Cleaning and maintaining the beach.",
-      Location: "Versova",
-      starttime: "9:00 AM",
-      endtime: "11:00 AM",
-      imagepath: "",
-      latitude: 19.0980,
-      longitude: 72.8300,
-    ),
-    EventItem(
-      title: "Blood Donation Camp",
-      date: "15 June 2026",
-      eventdate: DateTime (2026,6,15),
-      hours: 10,
-      description: "Donate blood and save lives.",
-      Location: "GSCC",
-      starttime: "10:00 AM",
-      endtime: "2:00 PM",
-      imagepath: "",
-      latitude: 19.0500,
-      longitude: 72.9000,
-    ),
-  ];
+  List<EventItem> _events = [];
+  List<EventItem> get events => _events;
+
+  List<Student> _cachedStudents = [];
+  List<Student> get students => _cachedStudents;
+
+  Future<void> fetchEvents() async {
+    try {
+      final response = await _supabase.from('events').select().order('event_date');
+      _events = (response as List).map((e) => EventItem.fromMap(e)).toList();
+      
+      if (studentId.isNotEmpty) {
+        final regs = await _supabase
+            .from('event_registrations')
+            .select()
+            .eq('student_id', studentId);
+        
+        final regList = regs as List;
+        for (var event in _events) {
+          event.joined = false;
+          event.completed = false;
+
+          final reg = regList.firstWhere(
+            (r) => r['event_id'] == event.id,
+            orElse: () => null,
+          );
+          if (reg != null) {
+            event.joined = true;
+            if (reg['status'] == 'completed') {
+              event.completed = true;
+              event.completedAt = DateTime.tryParse(reg['completed_at'] ?? '');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching events: $e");
+    }
+  }
+
   bool canJoinEvent(EventItem event) {
     final today = DateTime.now();
     return today.isBefore(event.eventdate);
   }
 
-  List<EventItem> get events => _events;
-
-  void addEvent(EventItem event) {
-    _events.insert(0, event);
+  Future<void> addEvent(EventItem event) async {
+    await _supabase.from('events').insert(event.toMap());
+    await fetchEvents();
     addNotification("New Event Added", event.title);
   }
 
-  void updateEvent(EventItem oldEvent, EventItem updatedEvent) {
-    final index = _events.indexOf(oldEvent);
-    if (index != -1) _events[index] = updatedEvent;
+  Future<void> updateEvent(EventItem updatedEvent) async {
+    if (updatedEvent.id == null) return;
+    await _supabase
+        .from('events')
+        .update(updatedEvent.toMap())
+        .eq('id', updatedEvent.id!);
+    await fetchEvents();
   }
 
-  void deleteEvent(EventItem event) {
-    _events.remove(event);
+  Future<void> deleteEvent(String eventId) async {
+    await _supabase.from('events').delete().eq('id', eventId);
+    await _supabase.from('event_registrations').delete().eq('event_id', eventId);
+    await fetchEvents();
   }
 
   // ---------------- EVENT ACTIONS ----------------
-  void joinEvent(EventItem event, String studentId) {
-    final student = students.firstWhere((s) => s.id == studentId);
-
-    if (!student.joinedEvents.contains(event.title)) {
-      student.joinedEvents.add(event.title);
-      event.joined = true;
-      event.joinedcount++;
-      saveStudents();
-
-      addNotification("Event Joined", event.title);
-    }
+  Future<void> joinEvent(EventItem event, String studentId) async {
+    final eventId = event.id;
+    if (eventId == null) return;
+    
+    await _supabase.from('event_registrations').upsert({
+      'student_id': studentId,
+      'event_id': eventId,
+      'status': 'joined',
+    });
+    
+    await fetchEvents(); 
+    addNotification("Event Joined", event.title);
   }
 
-  void completeEvent(EventItem event, String studentId) {
-    final student = students.firstWhere((s) => s.id == studentId);
+  Future<void> completeEvent(EventItem event, String studentId) async {
+    final eventId = event.id;
+    if (eventId == null) return;
 
-    if (!student.completedEvents.contains(event.title)) {
-      student.completedEvents.add(event.title);
-      student.totalHours += event.hours;
-      saveStudents();
+    await _supabase.from('event_registrations').update({
+      'status': 'completed',
+      'completed_at': DateTime.now().toIso8601String(),
+    }).match({'student_id': studentId, 'event_id': eventId});
 
-      event.completed = true;
-      event.completedcount++;
-
-      addNotification("Event Completed", event.title);
-    }
-  }
-
-  void uploadProofForEvent(EventItem event, String studentId) {
-    completeEvent(event, studentId);
+    await getTotalHours(studentId);
+    await fetchEvents(); 
+    addNotification("Event Completed", event.title);
   }
 
   // ---------------- DASHBOARD ----------------
-  int get totalHours {
-    final student =
-    students.firstWhere((s) => s.id == studentId, orElse: () => students[0]);
-    return student.totalHours;
+  Future<int> getTotalHours(String studentId) async {
+    try {
+      final regs = await _supabase
+          .from('event_registrations')
+          .select('event_id, status, events(hours)')
+          .eq('student_id', studentId)
+          .eq('status', 'completed');
+      
+      int calculatedHours = 0;
+      for (var reg in (regs as List)) {
+        calculatedHours += (reg['events']['hours'] as int? ?? 0);
+      }
+      totalHours = calculatedHours;
+      return totalHours;
+    } catch (e) {
+      return totalHours;
+    }
   }
-
-  int get completedEventsCount =>
-      _events.where((e) => e.completed).length;
 
   List<EventItem> get joinedEvents =>
       _events.where((e) => e.joined && !e.completed).toList();
@@ -200,117 +275,177 @@ class DataService {
   }
 
   // ---------------- ANNOUNCEMENTS ----------------
-  final List<Announcement> _announcements = [];
-
+  List<Announcement> _announcements = [];
   List<Announcement> get announcements => _announcements;
 
-  void addAnnouncement(String title, String message, String date) {
-    _announcements.insert(
-      0,
-      Announcement(title: title, message: message, date: date),
-    );
-    saveAnnouncements();
-
-    addNotification("Announcement", title);
-  }
-  Future<void> saveAnnouncements() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final data = _announcements.map((a) => {
-      'title': a.title,
-      'message': a.message,
-      'date': a.date,
-    }).toList();
-
-    prefs.setString('announcements', jsonEncode(data));
-  }
-
-  Future<void> loadAnnouncements() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('announcements');
-
-    if (data == null) return;
-
-    final decoded = jsonDecode(data) as List;
-
-    _announcements.clear();
-    _announcements.addAll(
-      decoded.map((e) => Announcement(
+  Future<void> fetchAnnouncements() async {
+    try {
+      final response = await _supabase.from('announcements').select().order('created_at', ascending: false);
+      _announcements = (response as List).map((e) => Announcement(
+        id: e['id'].toString(),
         title: e['title'],
         message: e['message'],
-        date: e['date'],
-      )),
-    );
+        date: e['date_str'],
+      )).toList();
+    } catch (e) {
+      debugPrint("Error fetching announcements: $e");
+    }
   }
 
-
-  // ---------------- STUDENTS ----------------
-  List<Student> students = [
-    Student(name: "Aarav Patel", id: "20210001", department: "BCOM"),
-    Student(name: "Diya Sharma", id: "20220002", department: "BMS"),
-    Student(name: "Rohan Gupta", id: "20230003", department: "BBA"),
-    Student(name: "Priya Singh", id: "20210004", department: "B.Sc IT"),
-    Student(name: "Vikram Verma", id: "20220005", department: "BCOM"),
-  ];
-
-  List<Student> getAllStudents() => students;
-
-  List<Student> getStudentsJoinedEvent(EventItem event) {
-    return students
-        .where((s) => s.joinedEvents.contains(event.title))
-        .toList();
+  Future<void> addAnnouncement(String title, String message, String date) async {
+    await _supabase.from('announcements').insert({
+      'title': title,
+      'message': message,
+      'date_str': date,
+    });
+    await fetchAnnouncements();
+    addNotification("Announcement", title);
   }
 
-  List<Student> getStudentsCompletedEvent(EventItem event) {
-    return students
-        .where((s) => s.completedEvents.contains(event.title))
-        .toList();
+  Future<void> updateAnnouncement(String id, String title, String message, String date) async {
+    await _supabase.from('announcements').update({
+      'title': title,
+      'message': message,
+      'date_str': date,
+    }).eq('id', id);
+    await fetchAnnouncements();
   }
-  Future<void> saveStudents() async {
-    final prefs = await SharedPreferences.getInstance();
 
-    final data = students.map((s) => {
-      'name': s.name,
-      'id': s.id,
-      'department': s.department,
-      'totalHours': s.totalHours,
-      'joinedEvents': s.joinedEvents,
-      'completedEvents': s.completedEvents,
-    }).toList();
-
-    prefs.setString('students', jsonEncode(data));
+  Future<void> deleteAnnouncement(String id) async {
+    await _supabase.from('announcements').delete().eq('id', id);
+    await fetchAnnouncements();
   }
-  Future<void> loadStudents() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('students');
 
-    if (data == null) return;
-
-    final decoded = jsonDecode(data) as List;
-
-    students = decoded.map((e) => Student(
-      name: e['name'],
-      id: e['id'],
-      department: e['department'],
-      totalHours: e['totalHours'],
-      joinedEvents: List<String>.from(e['joinedEvents']),
-      completedEvents: List<String>.from(e['completedEvents']),
-    )).toList();
-  }
-  // -------- PROFILE DATA --------
-  String stuName = ""; // Default
-  String stuId = "";
-  String studentCourse = "";
-  void updateProfile({
+  // ---------------- USERS / STUDENTS ----------------
+  Future<void> createStudent({
+    required String identifier,
     required String name,
-    required String id,
-    required String course,
-  }) {
-    stuName = name;
-    stuId = id;
-    studentCourse = course;
+    required String department,
+  }) async {
+    try {
+      await _supabase.from('users').insert({
+        'identifier': identifier,
+        'full_name': name,
+        'department': department,
+        'role': 'student',
+      });
+      await getAllStudents();
+    } catch (e) {
+      debugPrint("Error creating student in database: $e");
+      rethrow;
+    }
   }
-  bool notificationEnabled = true;
-  //bool darkModeEnabled = true;
 
+  Future<void> updateStudent(String originalIdentifier, {
+    required String name,
+    required String department,
+  }) async {
+    try {
+      await _supabase.from('users').update({
+        'full_name': name,
+        'department': department,
+      }).eq('identifier', originalIdentifier);
+      await getAllStudents();
+    } catch (e) {
+      debugPrint("Error updating student: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> deleteStudent(String studentIdentifier) async {
+    try {
+      // 1. Delete registrations first
+      await _supabase.from('event_registrations').delete().eq('student_id', studentIdentifier);
+      
+      // 2. Delete the user record
+      await _supabase.from('users').delete().eq('identifier', studentIdentifier);
+      
+      await getAllStudents();
+    } catch (e) {
+      debugPrint("Error deleting student: $e");
+      rethrow;
+    }
+  }
+
+  Future<List<Student>> getAllStudents() async {
+    try {
+      // 1. Fetch all users with 'student' role
+      final response = await _supabase.from('users').select().eq('role', 'student');
+      final List usersList = response as List;
+      
+      // 2. Fetch all registrations with event details
+      List regs = [];
+      try {
+        final regsResponse = await _supabase.from('event_registrations').select('*, events(title, hours)');
+        regs = regsResponse as List;
+      } catch (regError) {
+        debugPrint("Error fetching registrations: $regError");
+        // Continue with empty registrations list if it fails
+      }
+
+      // 3. Map users to Student objects
+      _cachedStudents = usersList.map((u) {
+        final student = Student.fromMap(u);
+        
+        // Match registrations for this specific student using 'identifier'
+        final studentRegs = regs.where((r) => r['student_id'] == student.identifier).toList();
+        
+        student.joinedEvents = studentRegs
+            .map((r) => (r['events'] as Map<String, dynamic>?)?['title'] as String? ?? 'Unknown')
+            .toList();
+            
+        int calculatedHours = 0;
+        student.completedEvents = [];
+        for (var r in studentRegs) {
+          if (r['status'] == 'completed') {
+            final eventData = r['events'] as Map<String, dynamic>?;
+            student.completedEvents.add(eventData?['title'] ?? 'Unknown');
+            calculatedHours += (eventData?['hours'] as int? ?? 0);
+          }
+        }
+        student.totalHours = calculatedHours;
+            
+        return student;
+      }).toList();
+      
+      return _cachedStudents;
+    } catch (e) {
+      debugPrint("Error in getAllStudents: $e");
+      return [];
+    }
+  }
+
+  Future<List<Student>> getStudentsJoinedEvent(String eventId) async {
+    try {
+      final response = await _supabase
+          .from('event_registrations')
+          .select('student_id, users(*)')
+          .eq('event_id', eventId)
+          .eq('status', 'joined');
+      
+      return (response as List).map((item) {
+        if (item['users'] == null) return null;
+        return Student.fromMap(item['users'] as Map<String, dynamic>);
+      }).whereType<Student>().toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Student>> getStudentsCompletedEvent(String eventId) async {
+    try {
+      final response = await _supabase
+          .from('event_registrations')
+          .select('student_id, users(*)')
+          .eq('event_id', eventId)
+          .eq('status', 'completed');
+      
+      return (response as List).map((item) {
+        if (item['users'] == null) return null;
+        return Student.fromMap(item['users'] as Map<String, dynamic>);
+      }).whereType<Student>().toList();
+    } catch (e) {
+      return [];
+    }
+  }
 }

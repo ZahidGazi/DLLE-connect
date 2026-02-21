@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'event_model.dart';
-import 'user_model.dart';
 import 'student_details.dart';
 
 class ManageStudentsScreen extends StatefulWidget {
@@ -16,6 +15,7 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
 
   List<Student> allStudents = [];
   List<Student> filteredStudents = [];
+  bool _isLoading = true;
 
   // Filter States
   String searchQuery = "";
@@ -26,8 +26,19 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
   @override
   void initState() {
     super.initState();
-    allStudents = DataService.instance.getAllStudents();
-    _applyFilters(); // Initial load
+    _loadStudents();
+  }
+
+  Future<void> _loadStudents() async {
+    setState(() => _isLoading = true);
+    final students = await DataService.instance.getAllStudents();
+    if (mounted) {
+      setState(() {
+        allStudents = students;
+        _isLoading = false;
+        _applyFilters();
+      });
+    }
   }
 
   // ---------- MASTER FILTER LOGIC ----------
@@ -35,8 +46,8 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
     setState(() {
       filteredStudents = allStudents.where((student) {
         // 1. Search Filter
-        final matchesSearch = student.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-            student.id.contains(searchQuery);
+        final matchesSearch = student.fullName.toLowerCase().contains(searchQuery.toLowerCase()) ||
+            student.identifier.toLowerCase().contains(searchQuery.toLowerCase());
 
         // 2. Course Filter
         final matchesCourse = (selectedCourse == "All") ||
@@ -60,10 +71,62 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
     });
   }
 
+  Future<void> _deleteStudent(Student student) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1F2933),
+        title: const Text("Remove Student", style: TextStyle(color: Colors.white)),
+        content: Text("Are you sure you want to remove ${student.fullName} from the system? This will also delete their event registrations.",
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Cancel"),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Remove", style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await DataService.instance.deleteStudent(student.identifier);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Student removed successfully")),
+          );
+          _loadStudents();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e")),
+          );
+        }
+      }
+    }
+  }
+
+  Widget padding({required Widget child, required EdgeInsets padding}) => Padding(padding: padding, child: child);
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading && allStudents.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0D1117),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     // Get unique departments for the dropdown
-    final courses = ["All", ...allStudents.map((s) => s.department).toSet()];
+    final List<String> courses = ["All", ...allStudents.map((s) => s.department).toSet()];
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
@@ -71,6 +134,12 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
       appBar: AppBar(
         title: const Text("Manage Students"),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadStudents,
+          ),
+        ],
       ),
 
       body: Padding(
@@ -116,9 +185,9 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                       _applyFilters();
                     },
                     itemBuilder: (_) => const [
-                      PopupMenuItem(value: "None", child: Text("Default Sort", style: TextStyle(color: Colors.white))),
-                      PopupMenuItem(value: "Low to High Hours", child: Text("Low to High Hours", style: TextStyle(color: Colors.white))),
-                      PopupMenuItem(value: "High to Low Hours", child: Text("High to Low Hours", style: TextStyle(color: Colors.white))),
+                      PopupMenuItem<String>(value: "None", child: Text("Default Sort", style: TextStyle(color: Colors.white))),
+                      PopupMenuItem<String>(value: "Low to High Hours", child: Text("Low to High Hours", style: TextStyle(color: Colors.white))),
+                      PopupMenuItem<String>(value: "High to Low Hours", child: Text("High to Low Hours", style: TextStyle(color: Colors.white))),
                     ],
                     child: filterChip("Sort", selectedSort != "None"),
                   ),
@@ -132,7 +201,7 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                       selectedCourse = val;
                       _applyFilters();
                     },
-                    itemBuilder: (_) => courses.map((course) => PopupMenuItem(
+                    itemBuilder: (_) => courses.map((course) => PopupMenuItem<String>(
                       value: course,
                       child: Text(course, style: const TextStyle(color: Colors.white)),
                     )).toList(),
@@ -149,9 +218,9 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                       _applyFilters();
                     },
                     itemBuilder: (_) => const [
-                      PopupMenuItem(value: "All", child: Text("All Status", style: TextStyle(color: Colors.white))),
-                      PopupMenuItem(value: "Completed", child: Text("Completed", style: TextStyle(color: Colors.white))),
-                      PopupMenuItem(value: "Ongoing", child: Text("Ongoing", style: TextStyle(color: Colors.white))),
+                      PopupMenuItem<String>(value: "All", child: Text("All Status", style: TextStyle(color: Colors.white))),
+                      PopupMenuItem<String>(value: "Completed", child: Text("Completed", style: TextStyle(color: Colors.white))),
+                      PopupMenuItem<String>(value: "Ongoing", child: Text("Ongoing", style: TextStyle(color: Colors.white))),
                     ],
                     child: filterChip("Status: $selectedStatus", selectedStatus != "All"),
                   ),
@@ -163,7 +232,9 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
 
             // ---------- STUDENT LIST ----------
             Expanded(
-              child: filteredStudents.isEmpty
+              child: _isLoading 
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredStudents.isEmpty
                   ? const Center(
                 child: Text(
                   "No students found",
@@ -208,20 +279,22 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
 
   // ---------- STUDENT CARD WITH STATUS BAR ----------
   Widget studentCard(BuildContext context, Student student) {
-    // ✅ Logic: 120 Hours = Completed
     bool isCompleted = student.totalHours >= 120;
     Color statusColor = isCompleted ? Colors.greenAccent : Colors.orangeAccent;
     String statusText = isCompleted ? "Completed" : "Ongoing";
-    double progress = (student.totalHours / 120).clamp(0.0, 1.0); // 0.0 to 1.0
+    double progress = (student.totalHours / 120).clamp(0.0, 1.0);
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => StudentDetailsScreen(student: student),
           ),
         );
+        if (result == true) {
+          _loadStudents();
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -233,7 +306,6 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
         ),
         child: Column(
           children: [
-            // Row 1: Avatar + Name + ID + Arrow
             Row(
               children: [
                 const CircleAvatar(
@@ -247,7 +319,7 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        student.name,
+                        student.fullName,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -255,11 +327,15 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                         ),
                       ),
                       Text(
-                        "ID: ${student.id} • ${student.department}",
+                        "ID: ${student.identifier} • ${student.department}",
                         style: const TextStyle(color: Colors.white54, fontSize: 13),
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                  onPressed: () => _deleteStudent(student),
                 ),
                 const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
               ],
@@ -269,10 +345,8 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
             const Divider(color: Colors.white10, height: 1),
             const SizedBox(height: 12),
 
-            // Row 2: Status Bar & Hours
             Row(
               children: [
-                // Status Pill
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -291,7 +365,6 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
 
                 const Spacer(),
 
-                // Hours Text
                 RichText(
                   text: TextSpan(
                     style: const TextStyle(color: Colors.white70, fontSize: 13),
@@ -312,7 +385,6 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
 
             const SizedBox(height: 8),
 
-            // Row 3: Visual Progress Bar
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(

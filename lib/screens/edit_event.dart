@@ -32,7 +32,6 @@ class _EditEventScreenState extends State<EditEventScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
       appBar: AppBar(title: const Text("Edit Event")),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -45,15 +44,14 @@ class _EditEventScreenState extends State<EditEventScreen> {
             const SizedBox(height: 12),
             input("Hours", hoursController,
                 keyboardType: TextInputType.number),
-
             const SizedBox(height: 24),
-
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   final updated = EventItem(
+                    id: widget.event.id,
                     title: titleController.text,
                     description: descController.text,
                     Location: locationController.text,
@@ -66,9 +64,9 @@ class _EditEventScreenState extends State<EditEventScreen> {
                     completed: widget.event.completed,
                   );
 
-                  DataService.instance.updateEvent(widget.event, updated);
+                  await DataService.instance.updateEvent(updated);
 
-                  Navigator.pop(context);
+                  if (mounted) Navigator.pop(context);
                 },
                 child: const Text("Save Changes"),
               ),

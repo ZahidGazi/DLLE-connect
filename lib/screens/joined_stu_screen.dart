@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'event_model.dart';
-import 'user_model.dart';
 
 class EventStudentsScreen extends StatelessWidget {
   final String title;
@@ -49,14 +48,14 @@ class EventStudentsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      s.name,
+                      s.fullName,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      "ID: ${s.id}",
+                      "ID: ${s.identifier}",
                       style: const TextStyle(color: Colors.white54),
                     ),
                   ],

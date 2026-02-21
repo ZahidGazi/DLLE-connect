@@ -89,12 +89,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       SnackBar(content: Text("You joined ${widget.event.title}")));
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.event.joined ? Colors.grey : Colors.blue,
+                  backgroundColor: widget.event.joined ? Colors.white70 : Colors.blue,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text(
                   widget.event.joined ? "Already Joined" : "Join Event",
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.black),
                 ),
               ),
             ),

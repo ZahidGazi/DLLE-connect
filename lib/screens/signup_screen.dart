@@ -11,41 +11,39 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController nameController = TextEditingController();
-  final TextEditingController identifierController = TextEditingController(); // ID or Email
+  final TextEditingController identifierController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
   final TextEditingController deptController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   
-  String selectedRole = 'student'; // Default role
   bool isLoading = false;
 
   void signup() async {
     final name = nameController.text.trim();
     final identifier = identifierController.text.trim();
+    final email = emailController.text.trim();
     final dept = deptController.text.trim();
     final password = passwordController.text.trim();
 
-    if (name.isEmpty || identifier.isEmpty || dept.isEmpty || password.isEmpty) {
+    if (name.isEmpty || identifier.isEmpty || email.isEmpty || dept.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill all fields")),
       );
       return;
     }
 
-    if (selectedRole == 'student') {
-      if (identifier.length < 5 || !RegExp(r'^[0-9]+$').hasMatch(identifier)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Student ID must be at least 5 digits")),
-        );
-        return;
-      }
-    } else {
-      // Basic email validation for admin
-      if (!identifier.contains('@') || !identifier.contains('.')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please enter a valid email address")),
-        );
-        return;
-      }
+    if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter a valid email address")),
+      );
+      return;
+    }
+
+    if (identifier.length < 5 || !RegExp(r'^[0-9]+$').hasMatch(identifier)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Student ID must be at least 5 digits")),
+      );
+      return;
     }
 
     if (password.length < 6) {
@@ -60,15 +58,16 @@ class _SignupScreenState extends State<SignupScreen> {
     try {
       await SupabaseService.signUp(
         identifier: identifier,
+        email: email,
         password: password,
         name: name,
         department: dept,
-        role: selectedRole,
+        role: 'student',
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Signup successful. Please login.")),
+          const SnackBar(content: Text("Signup successful! Please login to continue.")),
         );
         Navigator.pushReplacement(
           context,
@@ -77,8 +76,27 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = e.toString();
+        
+        if (errorMessage.startsWith("Exception: ")) {
+          errorMessage = errorMessage.replaceFirst("Exception: ", "");
+        }
+        
+        if (errorMessage.contains("User already registered")) {
+            errorMessage = "This email or Student ID is already registered.";
+        } else if (errorMessage.contains("check constraint")) {
+            errorMessage = "A database error occurred. Ensure RLS is disabled on the 'users' table or policies are correct.";
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Signup failed: ${e.toString()}")),
+          SnackBar(
+            content: Text(errorMessage),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () {},
+            ),
+          ),
         );
       }
     } finally {
@@ -100,7 +118,7 @@ class _SignupScreenState extends State<SignupScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Create Account",
+              "Create Student Account",
               style: TextStyle(
                 color: Colors.black,
                 fontSize: 22,
@@ -108,50 +126,18 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            
-            // -------- ROLE SELECTION --------
-            Row(
-              children: [
-                const Text("Role:", style: TextStyle(color: Colors.black, fontSize: 16)),
-                const SizedBox(width: 20),
-                ChoiceChip(
-                  label: const Text("Student"),
-                  selected: selectedRole == 'student',
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        selectedRole = 'student';
-                        identifierController.clear();
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(width: 10),
-                ChoiceChip(
-                  label: const Text("Admin"),
-                  selected: selectedRole == 'admin',
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        selectedRole = 'admin';
-                        identifierController.clear();
-                      });
-                    }
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
 
             inputField(nameController, "Full Name"),
             const SizedBox(height: 16),
             inputField(
               identifierController, 
-              selectedRole == 'student' ? "Student ID (Min 5 digits)" : "Admin Email",
-              keyboardType: selectedRole == 'student' ? TextInputType.number : TextInputType.emailAddress,
+              "Student ID (Min 5 digits)",
+              keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 16),
-            inputField(deptController, selectedRole == 'student' ? "Course" : "Department"),
+            inputField(emailController, "Email", keyboardType: TextInputType.emailAddress),
+            const SizedBox(height: 16),
+            inputField(deptController, "Course"),
             const SizedBox(height: 16),
             inputField(passwordController, "Password", isPassword: true),
             const SizedBox(height: 30),

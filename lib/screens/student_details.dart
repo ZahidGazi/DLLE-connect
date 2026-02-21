@@ -1,21 +1,68 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'event_model.dart';
-import 'user_model.dart';
 
-class StudentDetailsScreen extends StatelessWidget {
+class StudentDetailsScreen extends StatefulWidget {
   final Student student;
 
   const StudentDetailsScreen({super.key, required this.student});
 
   @override
+  State<StudentDetailsScreen> createState() => _StudentDetailsScreenState();
+}
+
+class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
+  Future<void> _deleteStudent() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1F2933),
+        title: const Text("Remove Student", style: TextStyle(color: Colors.white)),
+        content: Text("Are you sure you want to remove ${widget.student.fullName} from the system? This will also delete their event registrations.",
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Remove", style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await DataService.instance.deleteStudent(widget.student.identifier);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Student removed successfully")),
+          );
+          Navigator.pop(context, true); // Return true to indicate deletion
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e")),
+          );
+        }
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final joinedEvents = DataService.instance.events
-        .where((e) => student.joinedEvents.contains(e.title))
+    // We use the full events list from DataService to show details
+    final allEvents = DataService.instance.events;
+    
+    final joinedEvents = allEvents
+        .where((e) => widget.student.joinedEvents.contains(e.title) && !widget.student.completedEvents.contains(e.title))
         .toList();
 
-    final completedEvents = DataService.instance.events
-        .where((e) => student.completedEvents.contains(e.title))
+    final completedEvents = allEvents
+        .where((e) => widget.student.completedEvents.contains(e.title))
         .toList();
 
     return Scaffold(
@@ -47,27 +94,29 @@ class StudentDetailsScreen extends StatelessWidget {
                     child: Icon(Icons.person, color: Colors.white),
                   ),
                   const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        student.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.student.fullName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "ID: ${student.id}",
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                      Text(
-                        student.department,
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Text(
+                          "ID: ${widget.student.identifier}",
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        Text(
+                          widget.student.department,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -94,7 +143,7 @@ class StudentDetailsScreen extends StatelessWidget {
                       const Icon(Icons.timer, color: Colors.blueAccent),
                       const SizedBox(width: 6),
                       Text(
-                        "${student.totalHours}",
+                        "${widget.student.totalHours}",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -110,9 +159,9 @@ class StudentDetailsScreen extends StatelessWidget {
             const SizedBox(height: 24),
 
             // ---------------- JOINED EVENTS ----------------
-            sectionTitle("Joined Events"),
+            sectionTitle("Joined Events (Ongoing)"),
             joinedEvents.isEmpty
-                ? emptyText("No joined events")
+                ? emptyText("No ongoing joined events")
                 : Column(
               children: joinedEvents
                   .map((e) => eventTile(
@@ -142,6 +191,25 @@ class StudentDetailsScreen extends StatelessWidget {
               ))
                   .toList(),
             ),
+
+            const SizedBox(height: 40),
+
+            // ---------------- REMOVE BUTTON ----------------
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: _deleteStudent,
+                icon: const Icon(Icons.delete),
+                label: const Text("Remove Student from DLLE"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent.withOpacity(0.1),
+                  foregroundColor: Colors.redAccent,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  side: const BorderSide(color: Colors.redAccent),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

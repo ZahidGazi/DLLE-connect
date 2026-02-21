@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'data_service.dart';
-import 'event_details.dart';
 import 'event_model.dart';
 import 'event_analytics.dart';
 
@@ -23,10 +22,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
   DateTime? endDate;
   File? _selectedImage;
 
-  // ✅ Edit Mode Variable
   EventItem? _editingEvent;
 
-  // ✅ Function to Pick Image
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -53,7 +50,6 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
     }
   }
 
-  // ✅ Populate form for editing
   void _startEdit(EventItem event) {
     setState(() {
       _editingEvent = event;
@@ -61,17 +57,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       descController.text = event.description;
       locationController.text = event.Location;
       hoursController.text = event.hours.toString();
-
-      // Parse date string back to DateTime (Simple logic assuming DD/MM/YYYY)
-      try {
-        List<String> parts = event.date.split('/');
-        if (parts.length == 3) {
-          startDate = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
-          endDate = startDate; // Simplify for now
-        }
-      } catch (e) {
-        startDate = DateTime.now();
-      }
+      startDate = event.eventdate;
+      endDate = event.eventdate;
 
       if (event.imagepath != null) {
         _selectedImage = File(event.imagepath!);
@@ -81,7 +68,6 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
     });
   }
 
-  // ✅ Clear form
   void _resetForm() {
     setState(() {
       _editingEvent = null;
@@ -101,19 +87,15 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
-
       appBar: AppBar(
         title: Text(_editingEvent == null ? "Create Event" : "Edit Event"),
         centerTitle: true,
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            // ---------- IMAGE PICKER ----------
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -126,35 +108,28 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                 ),
                 child: _selectedImage != null
                     ? ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Image.file(_selectedImage!, fit: BoxFit.cover),
-                )
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                      )
                     : const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_a_photo, size: 40, color: Colors.white54),
-                    SizedBox(height: 8),
-                    Text("Tap to add Event Image", style: TextStyle(color: Colors.white54)),
-                  ],
-                ),
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_a_photo, size: 40, color: Colors.white54),
+                          SizedBox(height: 8),
+                          Text("Tap to add Event Image", style: TextStyle(color: Colors.white54)),
+                        ],
+                      ),
               ),
             ),
-
-            // ---------- FORM INPUTS ----------
             label("Event Title"),
             input(titleController, "Enter event title"),
-
             label("Description"),
             input(descController, "Enter description", maxLines: 3),
-
             label("Location"),
             input(locationController, "Enter location"),
-
             label("Hours"),
             input(hoursController, "Enter hours", keyboardType: TextInputType.number),
-
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(child: dateBox("Start Date", startDate, () => pickDate(true))),
@@ -162,15 +137,12 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                 Expanded(child: dateBox("End Date", endDate, () => pickDate(false))),
               ],
             ),
-
             const SizedBox(height: 20),
-
-            // ---------- ACTION BUTTON ----------
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (titleController.text.isEmpty ||
                       descController.text.isEmpty ||
                       locationController.text.isEmpty ||
@@ -185,35 +157,38 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                   String dateStr = "${startDate!.day}/${startDate!.month}/${startDate!.year}";
 
                   if (_editingEvent == null) {
-                    // ✅ CREATE NEW EVENT
                     final event = EventItem(
                       title: titleController.text,
                       description: descController.text,
                       Location: locationController.text,
                       date: dateStr,
                       hours: int.parse(hoursController.text),
-                      imagepath: _selectedImage?.path, eventdate: _editingEvent!.eventdate, starttime: '', endtime: '', // Save Image Path
+                      imagepath: _selectedImage?.path,
+                      eventdate: startDate!,
+                      starttime: '10:00 AM',
+                      endtime: '2:00 PM',
                     );
-                    DataService.instance.addEvent(event);
+                    await DataService.instance.addEvent(event);
                   } else {
-                    // ✅ UPDATE EXISTING EVENT
                     final updatedEvent = EventItem(
+                      id: _editingEvent!.id,
                       title: titleController.text,
                       description: descController.text,
                       Location: locationController.text,
                       date: dateStr,
                       hours: int.parse(hoursController.text),
                       imagepath: _selectedImage?.path,
-                      // Preserve existing stats
                       joined: _editingEvent!.joined,
                       completed: _editingEvent!.completed,
-                      joinedcount: _editingEvent!.joinedcount,
-                      completedcount: _editingEvent!.completedcount, eventdate: _editingEvent!.eventdate, starttime: '', endtime: '',
+                      eventdate: startDate!,
+                      starttime: _editingEvent!.starttime,
+                      endtime: _editingEvent!.endtime,
                     );
-                    DataService.instance.updateEvent(_editingEvent!, updatedEvent);
+                    await DataService.instance.updateEvent(updatedEvent);
                   }
 
                   _resetForm();
+                  setState(() {});
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _editingEvent == null ? Colors.blueAccent : Colors.green,
@@ -221,7 +196,6 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                 child: Text(_editingEvent == null ? "Create Event" : "Update Event"),
               ),
             ),
-
             if (_editingEvent != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
@@ -233,98 +207,95 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                   ),
                 ),
               ),
-
             const SizedBox(height: 30),
-
-            // ---------- EXISTING EVENTS ----------
             const Text(
               "Existing Events",
               style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-
             events.isEmpty
                 ? const Text("No events created yet", style: TextStyle(color: Colors.white54))
                 : ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: events.length,
-              itemBuilder: (context, index) {
-                final event = events[index];
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EventParticipationScreen(event: event),
-                      ),
-                    );
-                  },
-                child:  Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1F2933),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    children: [
-                      // Thumbnail
-                      Container(
-                        width: 50, height: 50,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.black26,
-                          image: event.imagepath != null
-                              ? DecorationImage(image: FileImage(File(event.imagepath!)), fit: BoxFit.cover)
-                              : null,
-                        ),
-                        child: event.imagepath == null
-                            ? const Icon(Icons.event, color: Colors.blue)
-                            : null,
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(event.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            Text(event.date, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                          ],
-                        ),
-                      ),
-
-                      // ✅ Edit/Delete Buttons
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blueAccent, size: 20),
-                            onPressed: () => _startEdit(event),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: events.length,
+                    itemBuilder: (context, index) {
+                      final event = events[index];
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => EventParticipationScreen(event: event),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1F2933),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20),
-                            onPressed: () {
-                              DataService.instance.deleteEvent(event);
-                              setState(() {});
-                            },
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.black26,
+                                  image: event.imagepath != null
+                                      ? DecorationImage(
+                                          image: FileImage(File(event.imagepath!)), fit: BoxFit.cover)
+                                      : null,
+                                ),
+                                child: event.imagepath == null
+                                    ? const Icon(Icons.event, color: Colors.blue)
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(event.title,
+                                        style: const TextStyle(
+                                            color: Colors.white, fontWeight: FontWeight.bold)),
+                                    Text(event.date,
+                                        style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, color: Colors.blueAccent, size: 20),
+                                    onPressed: () => _startEdit(event),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20),
+                                    onPressed: () async {
+                                      if (event.id != null) {
+                                        await DataService.instance.deleteEvent(event.id!);
+                                        setState(() {});
+                                      }
+                                    },
+                                  ),
+                                ],
+                              )
+                            ],
                           ),
-                        ],
-                      )
-                    ],
+                        ),
+                      );
+                    },
                   ),
-                )
-                );
-              },
-            ),
           ],
         ),
       ),
     );
   }
 
-  // ---------- UI HELPERS ----------
   Widget label(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, top: 12),
@@ -332,7 +303,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
     );
   }
 
-  Widget input(TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text}) {
+  Widget input(TextEditingController controller, String hint,
+      {int maxLines = 1, TextInputType keyboardType = TextInputType.text}) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
@@ -358,11 +330,13 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
           onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            decoration: BoxDecoration(color: const Color(0xFF1F2933), borderRadius: BorderRadius.circular(10)),
+            decoration:
+                BoxDecoration(color: const Color(0xFF1F2933), borderRadius: BorderRadius.circular(10)),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(date == null ? "Select date" : "${date.day}/${date.month}/${date.year}", style: const TextStyle(color: Colors.white70)),
+                Text(date == null ? "Select date" : "${date.day}/${date.month}/${date.year}",
+                    style: const TextStyle(color: Colors.white70)),
                 const Icon(Icons.calendar_today, color: Colors.white54, size: 18),
               ],
             ),

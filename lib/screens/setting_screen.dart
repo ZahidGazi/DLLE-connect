@@ -87,6 +87,14 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
           sectionTitle("App Settings", textColor),
 
           settingsTile(
+            icon: Icons.lock,
+            title: "Change Password",
+            textColor: textColor,
+            cardColor: cardColor,
+            onTap: () => _showChangePasswordDialog(context),
+          ),
+
+          settingsTile(
             icon: Icons.notifications,
             title: "Notifications",
             textColor: textColor,
@@ -174,6 +182,90 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
         trailing: trailing ?? Icon(Icons.arrow_forward_ios, size: 16, color: textColor.withOpacity(0.5)),
         onTap: onTap,
       ),
+    );
+  }
+
+  // -------- CHANGE PASSWORD DIALOG --------
+  void _showChangePasswordDialog(BuildContext context) {
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text("Change Password"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: oldPasswordController,
+                    decoration: const InputDecoration(labelText: "Old Password"),
+                    obscureText: true,
+                  ),
+                  TextField(
+                    controller: newPasswordController,
+                    decoration: const InputDecoration(labelText: "New Password"),
+                    obscureText: true,
+                  ),
+                  if (isLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading ? null : () async {
+                    final oldPassword = oldPasswordController.text.trim();
+                    final newPassword = newPasswordController.text.trim();
+
+                    if (oldPassword.isEmpty || newPassword.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Please fill all fields")),
+                      );
+                      return;
+                    }
+
+                    setState(() {
+                      isLoading = true;
+                    });
+
+                    final result = await DataService.instance.changeStudentPasswordWithVerification(
+                      oldPassword: oldPassword,
+                      newPassword: newPassword,
+                    );
+
+                    setState(() {
+                      isLoading = false;
+                    });
+
+                    if (result == "success") {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Password changed successfully")),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(result)),
+                      );
+                    }
+                  },
+                  child: const Text("Change"),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

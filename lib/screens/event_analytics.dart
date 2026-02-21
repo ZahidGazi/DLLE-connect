@@ -14,14 +14,33 @@ class EventParticipationScreen extends StatefulWidget {
 
 class _EventParticipationScreenState extends State<EventParticipationScreen> {
   String _selectedFilter = "All"; // Options: All, Registered, Completed
+  List<Student> _allStudents = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final students = await DataService.instance.getAllStudents();
+    setState(() {
+      _allStudents = students;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // 1. Get all students
-    final allStudents = DataService.instance.students;
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     // 2. Filter students who have at least JOINED this event
-    List<Student> participants = allStudents.where((s) {
+    List<Student> participants = _allStudents.where((s) {
       return s.joinedEvents.contains(widget.event.title);
     }).toList();
 
@@ -39,7 +58,6 @@ class _EventParticipationScreenState extends State<EventParticipationScreen> {
         title: Text(widget.event.title),
         elevation: 0,
         actions: [
-          // -------- FILTER DROPDOWN --------
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: DropdownButtonHideUnderline(
@@ -67,7 +85,6 @@ class _EventParticipationScreenState extends State<EventParticipationScreen> {
       ),
       body: Column(
         children: [
-          // -------- STATS HEADER --------
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             color: const Color(0xFF020202),
@@ -85,8 +102,6 @@ class _EventParticipationScreenState extends State<EventParticipationScreen> {
               ],
             ),
           ),
-
-          // -------- STUDENT LIST --------
           Expanded(
             child: filteredList.isEmpty
                 ? const Center(
@@ -100,9 +115,7 @@ class _EventParticipationScreenState extends State<EventParticipationScreen> {
               itemCount: filteredList.length,
               itemBuilder: (context, index) {
                 final student = filteredList[index];
-                // Check status logic
                 final isCompleted = student.completedEvents.contains(widget.event.title);
-
                 return _buildParticipantCard(student, isCompleted);
               },
             ),
@@ -113,7 +126,6 @@ class _EventParticipationScreenState extends State<EventParticipationScreen> {
   }
 
   Widget _buildParticipantCard(Student student, bool isCompleted) {
-    // Define styles based on status
     final statusText = isCompleted ? "Completed" : "Registered";
     final statusColor = isCompleted ? Colors.greenAccent : Colors.white70;
     final borderColor = isCompleted ? Colors.green.withOpacity(0.5) : Colors.white24;
@@ -122,20 +134,19 @@ class _EventParticipationScreenState extends State<EventParticipationScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2933), // Dark Card Color
+        color: const Color(0xFF1F2933),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white10),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Left: Name & ID
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  student.name,
+                  student.fullName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -144,7 +155,7 @@ class _EventParticipationScreenState extends State<EventParticipationScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "ID: ${student.id}",
+                  "ID: ${student.identifier}",
                   style: const TextStyle(
                     color: Colors.white54,
                     fontSize: 13,
@@ -153,8 +164,6 @@ class _EventParticipationScreenState extends State<EventParticipationScreen> {
               ],
             ),
           ),
-
-          // Right: Status Badge (Fixed Text)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
