@@ -19,8 +19,23 @@ class DataService {
   final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
   bool get isDarkMode => themeNotifier.value == ThemeMode.dark;
 
+  /// Load saved theme preference from SharedPreferences.
+  /// Called once at app startup before runApp().
+  Future<void> loadThemePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isDark = prefs.getBool('isDarkMode') ?? true; // Default to dark
+    themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
+  }
+
+  /// Toggle theme and persist the choice.
   void toggleTheme(bool isDark) {
     themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
+    _saveThemePreference(isDark);
+  }
+
+  Future<void> _saveThemePreference(bool isDark) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', isDark);
   }
 
   // ---------------- ADMIN ----------------
