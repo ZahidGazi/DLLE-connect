@@ -61,7 +61,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         child: Column(
           children: [
             passwordField(oldController, "Old Password"),
-            const SizedBox(height: 16),
+            const SizedBox(height: 16,),
+            Padding(padding: const EdgeInsets.symmetric(vertical: 8)),
             passwordField(newController, "New Password"),
             const SizedBox(height: 16),
             passwordField(confirmController, "Confirm Password"),

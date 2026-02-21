@@ -205,7 +205,9 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
                     controller: oldPasswordController,
                     decoration: const InputDecoration(labelText: "Old Password"),
                     obscureText: true,
+                    
                   ),
+                  Padding(padding: const EdgeInsets.symmetric(vertical: 8)),
                   TextField(
                     controller: newPasswordController,
                     decoration: const InputDecoration(labelText: "New Password"),

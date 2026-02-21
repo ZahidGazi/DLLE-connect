@@ -5,6 +5,7 @@ import 'coordinator_dashboard.dart';
 import 'data_service.dart';
 import 'dashboard_screen.dart';
 import 'signup_screen.dart';
+import 'email_confirmation_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -119,12 +120,40 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         String errorMessage = e.toString();
-        if (errorMessage.contains("Invalid login credentials")) {
-          errorMessage = "Incorrect Credentials or Password";
+        if (errorMessage.startsWith("Exception: ")) {
+          errorMessage = errorMessage.replaceFirst("Exception: ", "");
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+
+        if (errorMessage.contains("Email not confirmed")) {
+          // Navigate to email confirmation screen
+          String email = identifierController.text.trim();
+          // If student used an ID, try to resolve email
+          if (selectedRole == 'student' && !email.contains('@')) {
+            try {
+              final userData = await Supabase.instance.client
+                  .from('users')
+                  .select('email')
+                  .eq('identifier', email)
+                  .maybeSingle();
+              if (userData != null && userData['email'] != null) {
+                email = userData['email'];
+              }
+            } catch (_) {}
+          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EmailConfirmationScreen(email: email),
+            ),
+          );
+        } else {
+          if (errorMessage.contains("Invalid login credentials")) {
+            errorMessage = "Incorrect Credentials or Password";
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => isLoading = false);

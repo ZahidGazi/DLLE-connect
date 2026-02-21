@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
 import 'login_screen.dart';
+import 'email_confirmation_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -56,7 +57,7 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => isLoading = true);
 
     try {
-      await SupabaseService.signUp(
+      final response = await SupabaseService.signUp(
         identifier: identifier,
         email: email,
         password: password,
@@ -66,13 +67,24 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Signup successful! Please login to continue.")),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
+        if (response.session == null) {
+          // Email confirmation is pending
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EmailConfirmationScreen(email: email),
+            ),
+          );
+        } else {
+          // No email confirmation required, go to login
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Signup successful! Please login to continue.")),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
