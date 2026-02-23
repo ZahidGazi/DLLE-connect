@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/data_service.dart';
 import 'services/notification_service.dart';
 import 'supabase_config.dart';
@@ -152,7 +152,7 @@ class _DLLEAppState extends State<DLLEApp> {
             ),
             iconTheme: const IconThemeData(color: Colors.black87),
           ),
-          home: const LoginScreen(),
+          home: const SplashScreen(),
         );
       },
     );
