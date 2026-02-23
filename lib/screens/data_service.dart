@@ -193,11 +193,11 @@ class DataService {
           event.joined = false;
           event.completed = false;
 
-          final reg = regList.firstWhere(
+          final regIndex = regList.indexWhere(
             (r) => r['event_id'] == event.id,
-            orElse: () => null,
           );
-          if (reg != null) {
+          if (regIndex != -1) {
+            final reg = regList[regIndex];
             event.joined = true;
             if (reg['status'] == 'completed') {
               event.completed = true;

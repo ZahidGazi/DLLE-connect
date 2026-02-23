@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'data_service.dart';
@@ -20,6 +21,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
 
   DateTime? startDate;
   DateTime? endDate;
+  TimeOfDay? startTime;
+  TimeOfDay? endTime;
   File? _selectedImage;
 
   EventItem? _editingEvent;
@@ -38,7 +41,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
   Future<void> pickDate(bool isStart) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: (isStart ? startDate : endDate) ?? DateTime.now(),
       firstDate: DateTime(2023),
       lastDate: DateTime(2030),
     );
@@ -47,6 +50,43 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       setState(() {
         isStart ? startDate = picked : endDate = picked;
       });
+    }
+  }
+
+  Future<void> pickTime(bool isStart) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: (isStart ? startTime : endTime) ?? const TimeOfDay(hour: 10, minute: 0),
+    );
+
+    if (picked != null) {
+      setState(() {
+        isStart ? startTime = picked : endTime = picked;
+      });
+    }
+  }
+
+  String _formatTime(TimeOfDay? time) {
+    if (time == null) return "Select time";
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return "$hour:$minute $period";
+  }
+
+  TimeOfDay? _parseTime(String timeStr) {
+    try {
+      final parts = timeStr.split(' ');
+      if (parts.length != 2) return null;
+      final timeParts = parts[0].split(':');
+      if (timeParts.length != 2) return null;
+      int hour = int.parse(timeParts[0]);
+      int minute = int.parse(timeParts[1]);
+      if (parts[1].toUpperCase() == 'PM' && hour != 12) hour += 12;
+      if (parts[1].toUpperCase() == 'AM' && hour == 12) hour = 0;
+      return TimeOfDay(hour: hour, minute: minute);
+    } catch (e) {
+      return null;
     }
   }
 
@@ -59,6 +99,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       hoursController.text = event.hours.toString();
       startDate = event.eventdate;
       endDate = event.eventdate;
+      startTime = _parseTime(event.starttime);
+      endTime = _parseTime(event.endtime);
 
       if (event.imagepath != null) {
         _selectedImage = File(event.imagepath!);
@@ -77,16 +119,51 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       hoursController.clear();
       startDate = null;
       endDate = null;
+      startTime = null;
+      endTime = null;
       _selectedImage = null;
     });
+  }
+
+  Future<void> _confirmDelete(EventItem event) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Theme.of(context).cardTheme.color,
+        title: Text("Delete Event", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+        content: Text(
+          "Are you sure you want to delete \"${event.title}\"? This will also remove all student registrations for this event.",
+          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && event.id != null) {
+      await DataService.instance.deleteEvent(event.id!);
+      setState(() {});
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final events = DataService.instance.events;
+    final cardColor = Theme.of(context).cardTheme.color ?? const Color(0xFF1F2933);
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
+    final subTextColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final inputFillColor = Theme.of(context).inputDecorationTheme.fillColor ?? const Color(0xFF1F2933);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(_editingEvent == null ? "Create Event" : "Edit Event"),
         centerTitle: true,
@@ -96,48 +173,70 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // -------- IMAGE PICKER --------
             GestureDetector(
               onTap: _pickImage,
               child: Container(
                 height: 160,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1F2933),
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white24),
+                  border: Border.all(color: subTextColor.withOpacity(0.3)),
                 ),
                 child: _selectedImage != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                        child: kIsWeb
+                            ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
+                            : Image.file(_selectedImage!, fit: BoxFit.cover),
                       )
-                    : const Column(
+                    : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_a_photo, size: 40, color: Colors.white54),
-                          SizedBox(height: 8),
-                          Text("Tap to add Event Image", style: TextStyle(color: Colors.white54)),
+                          Icon(Icons.add_a_photo, size: 40, color: subTextColor.withOpacity(0.6)),
+                          const SizedBox(height: 8),
+                          Text("Tap to add Event Image", style: TextStyle(color: subTextColor.withOpacity(0.6))),
                         ],
                       ),
               ),
             ),
-            label("Event Title"),
-            input(titleController, "Enter event title"),
-            label("Description"),
-            input(descController, "Enter description", maxLines: 3),
-            label("Location"),
-            input(locationController, "Enter location"),
-            label("Hours"),
-            input(hoursController, "Enter hours", keyboardType: TextInputType.number),
+
+            // -------- FORM FIELDS --------
+            _label("Event Title", textColor),
+            _input(titleController, "Enter event title", inputFillColor, textColor, subTextColor),
+            _label("Description", textColor),
+            _input(descController, "Enter description", inputFillColor, textColor, subTextColor, maxLines: 3),
+            _label("Location", textColor),
+            _input(locationController, "Enter location", inputFillColor, textColor, subTextColor),
+            _label("Hours", textColor),
+            _input(hoursController, "Enter hours", inputFillColor, textColor, subTextColor, keyboardType: TextInputType.number),
+
             const SizedBox(height: 12),
+
+            // -------- DATE PICKERS --------
             Row(
               children: [
-                Expanded(child: dateBox("Start Date", startDate, () => pickDate(true))),
+                Expanded(child: _dateBox("Start Date", startDate, () => pickDate(true), cardColor, textColor, subTextColor)),
                 const SizedBox(width: 12),
-                Expanded(child: dateBox("End Date", endDate, () => pickDate(false))),
+                Expanded(child: _dateBox("End Date", endDate, () => pickDate(false), cardColor, textColor, subTextColor)),
               ],
             ),
+
+            const SizedBox(height: 12),
+
+            // -------- TIME PICKERS --------
+            Row(
+              children: [
+                Expanded(child: _timeBox("Start Time", startTime, () => pickTime(true), cardColor, textColor, subTextColor)),
+                const SizedBox(width: 12),
+                Expanded(child: _timeBox("End Time", endTime, () => pickTime(false), cardColor, textColor, subTextColor)),
+              ],
+            ),
+
             const SizedBox(height: 20),
+
+            // -------- SUBMIT BUTTON --------
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -155,6 +254,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                   }
 
                   String dateStr = "${startDate!.day}/${startDate!.month}/${startDate!.year}";
+                  String startTimeStr = _formatTime(startTime ?? const TimeOfDay(hour: 10, minute: 0));
+                  String endTimeStr = _formatTime(endTime ?? const TimeOfDay(hour: 14, minute: 0));
 
                   if (_editingEvent == null) {
                     final event = EventItem(
@@ -165,8 +266,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       hours: int.parse(hoursController.text),
                       imagepath: _selectedImage?.path,
                       eventdate: startDate!,
-                      starttime: '10:00 AM',
-                      endtime: '2:00 PM',
+                      starttime: startTimeStr,
+                      endtime: endTimeStr,
                     );
                     await DataService.instance.addEvent(event);
                   } else {
@@ -181,8 +282,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       joined: _editingEvent!.joined,
                       completed: _editingEvent!.completed,
                       eventdate: startDate!,
-                      starttime: _editingEvent!.starttime,
-                      endtime: _editingEvent!.endtime,
+                      starttime: startTimeStr,
+                      endtime: endTimeStr,
                     );
                     await DataService.instance.updateEvent(updatedEvent);
                   }
@@ -192,10 +293,15 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _editingEvent == null ? Colors.blueAccent : Colors.green,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Text(_editingEvent == null ? "Create Event" : "Update Event"),
+                child: Text(
+                  _editingEvent == null ? "Create Event" : "Update Event",
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
             ),
+
             if (_editingEvent != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
@@ -207,14 +313,17 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                   ),
                 ),
               ),
+
             const SizedBox(height: 30),
-            const Text(
+
+            // -------- EXISTING EVENTS LIST --------
+            Text(
               "Existing Events",
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             events.isEmpty
-                ? const Text("No events created yet", style: TextStyle(color: Colors.white54))
+                ? Text("No events created yet", style: TextStyle(color: subTextColor))
                 : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -234,7 +343,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1F2933),
+                            color: cardColor,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Row(
@@ -247,11 +356,14 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                                   color: Colors.black26,
                                   image: event.imagepath != null
                                       ? DecorationImage(
-                                          image: FileImage(File(event.imagepath!)), fit: BoxFit.cover)
+                                          image: kIsWeb
+                                              ? NetworkImage(event.imagepath!) as ImageProvider
+                                              : FileImage(File(event.imagepath!)),
+                                          fit: BoxFit.cover)
                                       : null,
                                 ),
                                 child: event.imagepath == null
-                                    ? const Icon(Icons.event, color: Colors.blue)
+                                    ? const Icon(Icons.event, color: Colors.blueAccent)
                                     : null,
                               ),
                               const SizedBox(width: 12),
@@ -260,10 +372,12 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(event.title,
-                                        style: const TextStyle(
-                                            color: Colors.white, fontWeight: FontWeight.bold)),
+                                        style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 4),
                                     Text(event.date,
-                                        style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                        style: TextStyle(color: subTextColor, fontSize: 12)),
+                                    Text("${event.starttime} - ${event.endtime}",
+                                        style: TextStyle(color: subTextColor, fontSize: 12)),
                                   ],
                                 ),
                               ),
@@ -275,12 +389,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20),
-                                    onPressed: () async {
-                                      if (event.id != null) {
-                                        await DataService.instance.deleteEvent(event.id!);
-                                        setState(() {});
-                                      }
-                                    },
+                                    onPressed: () => _confirmDelete(event),
                                   ),
                                 ],
                               )
@@ -296,48 +405,85 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
     );
   }
 
-  Widget label(String text) {
+  // -------- HELPER WIDGETS --------
+
+  Widget _label(String text, Color textColor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, top: 12),
-      child: Text(text, style: const TextStyle(color: Colors.white70)),
+      child: Text(text, style: TextStyle(color: textColor.withOpacity(0.7))),
     );
   }
 
-  Widget input(TextEditingController controller, String hint,
-      {int maxLines = 1, TextInputType keyboardType = TextInputType.text}) {
+  Widget _input(
+    TextEditingController controller,
+    String hint,
+    Color fillColor,
+    Color textColor,
+    Color hintColor, {
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: textColor),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white54),
+        hintStyle: TextStyle(color: hintColor.withOpacity(0.5)),
         filled: true,
-        fillColor: const Color(0xFF1F2933),
+        fillColor: fillColor,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
       ),
     );
   }
 
-  Widget dateBox(String label, DateTime? date, VoidCallback onTap) {
+  Widget _dateBox(String label, DateTime? date, VoidCallback onTap, Color cardColor, Color textColor, Color subTextColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70)),
+        Text(label, style: TextStyle(color: textColor.withOpacity(0.7))),
         const SizedBox(height: 6),
         GestureDetector(
           onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            decoration:
-                BoxDecoration(color: const Color(0xFF1F2933), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(10)),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(date == null ? "Select date" : "${date.day}/${date.month}/${date.year}",
-                    style: const TextStyle(color: Colors.white70)),
-                const Icon(Icons.calendar_today, color: Colors.white54, size: 18),
+                Text(
+                  date == null ? "Select date" : "${date.day}/${date.month}/${date.year}",
+                  style: TextStyle(color: textColor.withOpacity(0.7)),
+                ),
+                Icon(Icons.calendar_today, color: subTextColor, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _timeBox(String label, TimeOfDay? time, VoidCallback onTap, Color cardColor, Color textColor, Color subTextColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: textColor.withOpacity(0.7))),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(10)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _formatTime(time),
+                  style: TextStyle(color: textColor.withOpacity(0.7)),
+                ),
+                Icon(Icons.access_time, color: subTextColor, size: 18),
               ],
             ),
           ),
