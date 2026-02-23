@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'event_model.dart';
 import 'notification_model.dart';
 import 'announcement_model.dart';
+import '../services/notification_service.dart';
 
 class DataService {
   // ---------------- SINGLETON ----------------
@@ -313,6 +314,38 @@ class DataService {
     notificationCountNotifier.value = 0;
   }
 
+  /// Load notifications from the announcements table in Supabase.
+  /// This ensures that when a student opens the app (even after restart),
+  /// the notification screen shows all past announcements as notifications.
+  Future<void> loadNotificationsFromAnnouncements() async {
+    try {
+      // Fetch announcements if not already loaded
+      if (_announcements.isEmpty) {
+        await fetchAnnouncements();
+      }
+
+      // Clear existing in-memory notifications to avoid duplicates
+      notifications.clear();
+
+      // Convert each announcement into an AppNotification
+      for (final announcement in _announcements) {
+        notifications.add(
+          AppNotification(
+            title: "📢 New Announcement",
+            message: announcement.title,
+            time: DateTime.tryParse(announcement.date) ?? DateTime.now(),
+          ),
+        );
+      }
+
+      // Update the badge count
+      notificationCountNotifier.value = notifications.length;
+      debugPrint("[DataService] Loaded ${notifications.length} notifications from announcements");
+    } catch (e) {
+      debugPrint("Error loading notifications from announcements: $e");
+    }
+  }
+
   // ---------------- REALTIME SUBSCRIPTIONS ----------------
   RealtimeChannel? _announcementsChannel;
 
@@ -340,8 +373,11 @@ class DataService {
               _announcements.insert(0, announcement);
             }
 
-            // Notify all connected users (students & admin)
-            addNotification("📢 New Announcement", announcement.title);
+            // Show system notification + add to in-app list
+            NotificationService.showNotification(
+              title: "📢 New Announcement",
+              body: announcement.title,
+            );
           },
         )
         .subscribe();

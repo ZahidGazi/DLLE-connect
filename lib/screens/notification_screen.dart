@@ -10,11 +10,21 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
+    _loadNotifications();
+  }
+
+  /// Load notifications from announcements in Supabase, then clear badge.
+  Future<void> _loadNotifications() async {
+    setState(() => _isLoading = true);
+    await DataService.instance.loadNotificationsFromAnnouncements();
     // Clear the badge count when the user opens the notification screen
     DataService.instance.clearNotificationCount();
+    if (mounted) setState(() => _isLoading = false);
   }
 
   String _formatTime(DateTime time) {
@@ -68,7 +78,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
         ],
       ),
-      body: notifications.isEmpty
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : notifications.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

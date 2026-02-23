@@ -154,7 +154,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   DataService.instance.toggleTheme(value);
                 });
               },
-              activeColor: Colors.blueAccent,
+              activeThumbColor: Colors.blueAccent,
             ),
           ),
           const SizedBox(height: 40),

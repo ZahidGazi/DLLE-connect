@@ -107,7 +107,7 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
                   DataService.instance.notificationEnabled = value;
                 });
               },
-              activeColor: Colors.blueAccent,
+              activeThumbColor: Colors.blueAccent,
             ),
           ),
 
@@ -124,7 +124,7 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
                   DataService.instance.toggleTheme(value);
                 });
               },
-              activeColor: Colors.blueAccent,
+              activeThumbColor: Colors.blueAccent,
             ),
           ),
 

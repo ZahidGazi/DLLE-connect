@@ -1,4 +1,4 @@
-package com.example.app
+package com.dlle.connect
 
 import io.flutter.embedding.android.FlutterActivity
 
