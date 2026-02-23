@@ -15,6 +15,9 @@ void main() async {
   // Load saved theme preference before building the UI
   await DataService.instance.loadThemePreference();
 
+  // Start Supabase Realtime subscription for announcements (notifies all users)
+  DataService.instance.initRealtimeSubscriptions();
+
   runApp(const DLLEApp());
 }
 

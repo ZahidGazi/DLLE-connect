@@ -6,6 +6,7 @@ import 'event_details.dart';
 import 'announcement_screen.dart';
 import 'upload_screen.dart';
 import 'setting_screen.dart';
+import 'notification_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -174,6 +175,54 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
       appBar: AppBar(
         title: const Text("Dashboard"),
         automaticallyImplyLeading: false,
+        actions: [
+          ValueListenableBuilder<int>(
+            valueListenable: DataService.instance.notificationCountNotifier,
+            builder: (context, count, _) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    tooltip: "Notifications",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            count > 99 ? "99+" : count.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
 
       body: RefreshIndicator(

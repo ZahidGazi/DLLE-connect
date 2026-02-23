@@ -294,6 +294,9 @@ class DataService {
   // ---------------- NOTIFICATIONS ----------------
   List<AppNotification> notifications = [];
 
+  /// Tracks unread notification count — used for the bell badge in the UI.
+  final ValueNotifier<int> notificationCountNotifier = ValueNotifier(0);
+
   void addNotification(String title, String message) {
     notifications.insert(
       0,
@@ -303,6 +306,52 @@ class DataService {
         time: DateTime.now(),
       ),
     );
+    notificationCountNotifier.value = notifications.length;
+  }
+
+  void clearNotificationCount() {
+    notificationCountNotifier.value = 0;
+  }
+
+  // ---------------- REALTIME SUBSCRIPTIONS ----------------
+  RealtimeChannel? _announcementsChannel;
+
+  /// Call once at app startup (after Supabase.initialize).
+  /// Listens for new announcements inserted by admin and notifies all users.
+  void initRealtimeSubscriptions() {
+    _announcementsChannel = _supabase
+        .channel('public:announcements')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'announcements',
+          callback: (payload) {
+            final newRow = payload.newRecord;
+            final announcement = Announcement(
+              id: newRow['id']?.toString(),
+              title: newRow['title'] ?? '',
+              message: newRow['message'] ?? '',
+              date: newRow['date_str'] ?? '',
+            );
+
+            // Avoid duplicate if already in list
+            final alreadyExists = _announcements.any((a) => a.id == announcement.id);
+            if (!alreadyExists) {
+              _announcements.insert(0, announcement);
+            }
+
+            // Notify all connected users (students & admin)
+            addNotification("📢 New Announcement", announcement.title);
+          },
+        )
+        .subscribe();
+  }
+
+  void disposeRealtimeSubscriptions() {
+    if (_announcementsChannel != null) {
+      _supabase.removeChannel(_announcementsChannel!);
+      _announcementsChannel = null;
+    }
   }
 
   // ---------------- ANNOUNCEMENTS ----------------
@@ -329,8 +378,9 @@ class DataService {
       'message': message,
       'date_str': date,
     });
-    await fetchAnnouncements();
-    addNotification("Announcement", title);
+    // Note: fetchAnnouncements() is NOT called here because the Realtime
+    // subscription will handle updating the list and notifying all users
+    // (including the admin who posted it) automatically.
   }
 
   Future<void> updateAnnouncement(String id, String title, String message, String date) async {

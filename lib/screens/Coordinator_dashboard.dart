@@ -3,6 +3,8 @@ import 'package:dlle_connect/screens/admin_setting_screen.dart';
 import 'package:dlle_connect/screens/manage_events.dart';
 import 'package:flutter/material.dart';
 import 'manage_stu_screen.dart';
+import 'data_service.dart';
+import 'notification_screen.dart';
 
 class CoordinatorDashboardScreen extends StatelessWidget {
   const CoordinatorDashboardScreen({super.key});
@@ -12,14 +14,57 @@ class CoordinatorDashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        title: const Text(
-          "Dashboard",
-        ),
+        title: const Text("Dashboard"),
         centerTitle: true,
-        leading: const Padding(
-          padding: EdgeInsets.all(8.0),
+        actions: [
+          ValueListenableBuilder<int>(
+            valueListenable: DataService.instance.notificationCountNotifier,
+            builder: (context, count, _) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    tooltip: "Notifications",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            count > 99 ? "99+" : count.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
-        ),
+          const SizedBox(width: 4),
+        ],
+      ),
 
       body: Padding(
         padding: const EdgeInsets.all(20),
