@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'announcement_model.dart';
+import '../utils/responsive_helper.dart';
 
 class StudentAnnouncementScreen extends StatefulWidget {
   const StudentAnnouncementScreen({super.key});
@@ -73,149 +74,160 @@ class _StudentAnnouncementScreenState
                         ),
                       ],
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: announcements.length,
-                      itemBuilder: (context, index) {
-                        final item = announcements[index];
+                  : _buildAnnouncementList(
+                      announcements, cardColor, textColor, subTextColor, borderColor),
+            ),
+    );
+  }
 
-                        return GestureDetector(
-                          onTap: () =>
-                              _showAnnouncementDetail(context, item),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 14),
-                            decoration: BoxDecoration(
-                              color: cardColor,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: borderColor),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // -------- IMAGE (if any) --------
-                                if (item.imageUrl != null &&
-                                    item.imageUrl!.isNotEmpty)
-                                  ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(14)),
-                                    child: Image.network(
-                                      item.imageUrl!,
-                                      height: 160,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) =>
-                                          const SizedBox.shrink(),
-                                      loadingBuilder:
-                                          (_, child, loadingProgress) {
-                                        if (loadingProgress == null) {
-                                          return child;
-                                        }
-                                        return Container(
-                                          height: 160,
-                                          color: borderColor,
-                                          child: const Center(
-                                            child:
-                                                CircularProgressIndicator(
-                                                    strokeWidth: 2),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
+  // ---------------- RESPONSIVE LIST / GRID ----------------
+  Widget _buildAnnouncementList(
+    List<Announcement> announcements,
+    Color? cardColor,
+    Color? textColor,
+    Color? subTextColor,
+    Color borderColor,
+  ) {
+    final cols = ResponsiveHelper.listGridColumns(context);
+    final padding = ResponsiveHelper.padding(context);
+    final imgHeight = ResponsiveHelper.imageHeight(context, 160);
 
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // -------- TITLE --------
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.campaign,
-                                              size: 18,
-                                              color: Colors.blueAccent),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              item.title,
-                                              maxLines: 1,
-                                              overflow:
-                                                  TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: textColor,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-
-                                      const SizedBox(height: 8),
-
-                                      // -------- DATE --------
-                                      Row(
-                                        children: [
-                                          Icon(Icons.calendar_today,
-                                              size: 12,
-                                              color: subTextColor?.withOpacity(0.6)),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            item.formattedDate,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: subTextColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-
-                                      const SizedBox(height: 10),
-
-                                      // -------- MESSAGE PREVIEW --------
-                                      Text(
-                                        item.message,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: textColor,
-                                          height: 1.4,
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 8),
-
-                                      // -------- TAP TO READ MORE --------
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: Text(
-                                          "Tap to read more →",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.blueAccent
-                                                .withOpacity(0.8),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+    Widget buildCard(Announcement item) {
+      return GestureDetector(
+        onTap: () => _showAnnouncementDetail(context, item),
+        child: Container(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (item.imageUrl != null && item.imageUrl!.isNotEmpty)
+                ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(14)),
+                  child: Image.network(
+                    item.imageUrl!,
+                    height: imgHeight,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    loadingBuilder: (_, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: imgHeight,
+                        color: borderColor,
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.campaign,
+                            size: 18, color: Colors.blueAccent),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            item.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: ResponsiveHelper.fontSize(context, 16),
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
                             ),
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
-            ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today,
+                            size: 12,
+                            color: subTextColor?.withOpacity(0.6)),
+                        const SizedBox(width: 4),
+                        Text(
+                          item.formattedDate,
+                          style: TextStyle(
+                            fontSize: ResponsiveHelper.fontSize(context, 12),
+                            color: subTextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      item.message,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.fontSize(context, 14),
+                        color: textColor,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "Tap to read more →",
+                        style: TextStyle(
+                          fontSize: ResponsiveHelper.fontSize(context, 12),
+                          color: Colors.blueAccent.withOpacity(0.8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (cols == 1) {
+      return ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: padding,
+        itemCount: announcements.length,
+        itemBuilder: (_, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: buildCard(announcements[index]),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: padding,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: cols,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.85,
+      ),
+      itemCount: announcements.length,
+      itemBuilder: (_, index) => buildCard(announcements[index]),
     );
   }
 

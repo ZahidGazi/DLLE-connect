@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'manage_stu_screen.dart';
 import 'data_service.dart';
 import 'notification_screen.dart';
+import '../utils/responsive_helper.dart';
 
 class CoordinatorDashboardScreen extends StatelessWidget {
   const CoordinatorDashboardScreen({super.key});
@@ -67,24 +68,27 @@ class CoordinatorDashboardScreen extends StatelessWidget {
         ],
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      body: SingleChildScrollView(
+        padding: ResponsiveHelper.padding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
             Text(
               "Manage",
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontSize: ResponsiveHelper.fontSize(context, 20),
+              ),
             ),
 
             const SizedBox(height: 20),
 
             GridView.count(
-              crossAxisCount: 2,
+              crossAxisCount: ResponsiveHelper.dashboardGridColumns(context),
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               shrinkWrap: true,
+              childAspectRatio: ResponsiveHelper.gridAspectRatio(context),
               physics: const NeverScrollableScrollPhysics(),
               children: [
 

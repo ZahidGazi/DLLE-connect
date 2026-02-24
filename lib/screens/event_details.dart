@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'event_model.dart';
 import 'data_service.dart';
+import '../utils/responsive_helper.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final EventItem event;
@@ -64,14 +65,17 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text("Event Details")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: Center(
+        child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: ResponsiveHelper.maxFormWidth(context)),
+        child: SingleChildScrollView(
+        padding: ResponsiveHelper.padding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // -------- EVENT IMAGE --------
             Container(
-              height: 200,
+              height: ResponsiveHelper.imageHeight(context, 200),
               width: double.infinity,
               decoration: BoxDecoration(
                 color: cardColor,
@@ -268,6 +272,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
             const SizedBox(height: 20),
           ],
+        ),
+        ),
         ),
       ),
     );

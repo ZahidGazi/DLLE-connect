@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'login_screen.dart';
+import '../utils/responsive_helper.dart';
 
 class StudentSettingsScreen extends StatefulWidget {
   const StudentSettingsScreen({super.key});
@@ -33,8 +34,11 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
         title: const Text("Settings"),
         centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Center(
+        child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: ResponsiveHelper.maxFormWidth(context)),
+        child: ListView(
+        padding: ResponsiveHelper.padding(context),
         children: [
 
           // -------- PROFILE CARD (READ ONLY) --------
@@ -151,6 +155,8 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
             ),
           ),
         ],
+        ),
+        ),
       ),
     );
   }

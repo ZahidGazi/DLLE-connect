@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'event_model.dart';
+import '../utils/responsive_helper.dart';
 
 class StudentDetailsScreen extends StatefulWidget {
   final Student student;
@@ -83,8 +84,11 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
         title: const Text("Student Details"),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: Center(
+        child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: ResponsiveHelper.maxFormWidth(context)),
+        child: SingleChildScrollView(
+        padding: ResponsiveHelper.padding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -228,6 +232,8 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
             ),
             const SizedBox(height: 20),
           ],
+        ),
+        ),
         ),
       ),
     );

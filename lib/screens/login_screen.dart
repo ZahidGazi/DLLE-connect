@@ -6,6 +6,7 @@ import 'data_service.dart';
 import 'dashboard_screen.dart';
 import 'signup_screen.dart';
 import 'email_confirmation_screen.dart';
+import '../utils/responsive_helper.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -166,12 +167,13 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
+          padding: ResponsiveHelper.padding(context),
+          child: ResponsiveWrapper(
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
-                height: 150,
+                height: ResponsiveHelper.imageHeight(context, 150),
                 child: Image.asset(
                   'assets/login_image.png',
                   fit: BoxFit.contain,
@@ -272,6 +274,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
             ],
+          ),
           ),
         ),
       ),

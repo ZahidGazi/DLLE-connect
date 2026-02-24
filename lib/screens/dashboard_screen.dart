@@ -7,6 +7,7 @@ import 'announcement_screen.dart';
 import 'upload_screen.dart';
 import 'setting_screen.dart';
 import 'notification_screen.dart';
+import '../utils/responsive_helper.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -214,8 +215,9 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
         backgroundColor: Theme.of(context).cardTheme.color,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
+          padding: ResponsiveHelper.padding(context),
+          child: ResponsiveWrapper(
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // -------- PROFILE CARD --------
@@ -227,30 +229,35 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                 ),
                 child: Row(
                   children: [
-                    const CircleAvatar(
-                      radius: 28,
+                    CircleAvatar(
+                      radius: ResponsiveHelper.avatarRadius(context, 28),
                       backgroundColor: Colors.grey,
-                      child: Icon(Icons.person, color: Colors.white),
+                      child: Icon(Icons.person, color: Colors.white,
+                        size: ResponsiveHelper.iconSize(context, 24)),
                     ),
                     const SizedBox(width: 14),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          data.studentName.isEmpty ? "Student Name" : data.studentName,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "ID: ${data.studentId.isEmpty ? "Unknown" : data.studentId}",
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Course: ${data.studentCourse.isEmpty ? "Unknown" : data.studentCourse}",
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            data.studentName.isEmpty ? "Student Name" : data.studentName,
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontSize: ResponsiveHelper.fontSize(context, 18),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "ID: ${data.studentId.isEmpty ? "Unknown" : data.studentId}",
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Course: ${data.studentCourse.isEmpty ? "Unknown" : data.studentCourse}",
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -286,7 +293,9 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
               // -------- MONTHLY GRAPH --------
               Text(
                 "Monthly Joined Events",
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: ResponsiveHelper.fontSize(context, 16),
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -297,51 +306,60 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: SizedBox(
-                  height: 180,
+                  height: ResponsiveHelper.imageHeight(context, 180),
                   child: monthlyData.isEmpty
                       ? const Center(child: Text("No events joined yet"))
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: monthOrder.map((month) {
-                            if (!monthlyData.containsKey(month)) {
-                              return const SizedBox.shrink();
-                            }
-                            int count = monthlyData[month] ?? 0;
-                            int maxCount = monthlyData.values.reduce((a, b) => a > b ? a : b);
-                            double barHeight = (count / (maxCount == 0 ? 1 : maxCount)) * 120;
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            final barWidth = ResponsiveHelper.isDesktop(context)
+                                ? 28.0
+                                : ResponsiveHelper.isTablet(context)
+                                    ? 24.0
+                                    : 20.0;
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: monthOrder.map((month) {
+                                if (!monthlyData.containsKey(month)) {
+                                  return const SizedBox.shrink();
+                                }
+                                int count = monthlyData[month] ?? 0;
+                                int maxCount = monthlyData.values.reduce((a, b) => a > b ? a : b);
+                                double barHeight = (count / (maxCount == 0 ? 1 : maxCount)) * 120;
 
-                            return Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Text(
-                                  count.toString(),
-                                  style: TextStyle(
-                                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Container(
-                                  width: 20,
-                                  height: barHeight < 10 ? 10 : barHeight,
-                                  decoration: BoxDecoration(
-                                    color: Colors.blueAccent,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  month,
-                                  style: TextStyle(
-                                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
+                                return Column(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      count.toString(),
+                                      style: TextStyle(
+                                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                                        fontSize: ResponsiveHelper.fontSize(context, 10),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      width: barWidth,
+                                      height: barHeight < 10 ? 10 : barHeight,
+                                      decoration: BoxDecoration(
+                                        color: Colors.blueAccent,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      month,
+                                      style: TextStyle(
+                                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                                        fontSize: ResponsiveHelper.fontSize(context, 12),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
                             );
-                          }).toList(),
+                          },
                         ),
                 ),
               ),
@@ -354,7 +372,9 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                 children: [
                   Text(
                     "Joined Events",
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontSize: ResponsiveHelper.fontSize(context, 16),
+                    ),
                   ),
                   TextButton(
                     onPressed: () => _navigateToEventList("Joined Events", joinedEvents),
@@ -379,7 +399,9 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                 children: [
                   Text(
                     "Activity Completed",
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontSize: ResponsiveHelper.fontSize(context, 16),
+                    ),
                   ),
                   TextButton(
                     onPressed: () => _navigateToEventList("Completed Events", completedEvents),
@@ -397,6 +419,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
               for (var e in completedEvents.take(3)) completedTile(e),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -411,11 +434,15 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 28),
+          Icon(icon, color: color, size: ResponsiveHelper.iconSize(context, 28)),
           const SizedBox(height: 10),
-          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22)),
+          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontSize: ResponsiveHelper.fontSize(context, 22),
+          )),
           const SizedBox(height: 6),
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontSize: ResponsiveHelper.fontSize(context, 13),
+          )),
         ],
       ),
     );
@@ -439,25 +466,28 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  event.title,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                    fontSize: 14,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.title,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      fontSize: ResponsiveHelper.fontSize(context, 14),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  event.date,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
-                    fontSize: 12,
+                  const SizedBox(height: 4),
+                  Text(
+                    event.date,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                      fontSize: ResponsiveHelper.fontSize(context, 12),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             Icon(Icons.arrow_forward_ios, color: Theme.of(context).iconTheme.color, size: 16),
           ],
@@ -484,29 +514,36 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  event.title,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                    fontSize: 14,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.title,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      fontSize: ResponsiveHelper.fontSize(context, 14),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  event.date,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
-                    fontSize: 12,
+                  const SizedBox(height: 4),
+                  Text(
+                    event.date,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                      fontSize: ResponsiveHelper.fontSize(context, 12),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             Text(
               "+${event.hours} Hours",
-              style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.greenAccent,
+                fontWeight: FontWeight.bold,
+                fontSize: ResponsiveHelper.fontSize(context, 13),
+              ),
             ),
           ],
         ),

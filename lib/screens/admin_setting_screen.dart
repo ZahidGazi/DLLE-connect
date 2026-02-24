@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'login_screen.dart';
+import '../utils/responsive_helper.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -92,8 +93,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         centerTitle: true,
         elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Center(
+        child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: ResponsiveHelper.maxFormWidth(context)),
+        child: ListView(
+        padding: ResponsiveHelper.padding(context),
         children: [
           Container(
             padding: const EdgeInsets.all(20),
@@ -195,6 +199,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             ),
           ),
         ],
+        ),
+        ),
       ),
     );
   }

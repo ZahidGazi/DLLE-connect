@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'notification_model.dart';
+import '../utils/responsive_helper.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -67,11 +68,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cardColor = theme.cardTheme.color;
-    final textColor = theme.textTheme.bodyLarge?.color;
     final subTextColor = theme.textTheme.bodyMedium?.color;
     final hintColor = theme.inputDecorationTheme.hintStyle?.color;
-    final borderColor = theme.dividerColor;
     final List<AppNotification> notifications =
         DataService.instance.notifications;
 
@@ -97,11 +95,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.notifications_none,
-                        size: 72,
-                        color: hintColor,
-                      ),
+                      Icon(Icons.notifications_none, size: 72, color: hintColor),
                       const SizedBox(height: 16),
                       Text(
                         "No notifications yet",
@@ -116,104 +110,132 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ],
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: notifications.length,
-                  itemBuilder: (context, index) {
-                    final n = notifications[index];
-                    final iconColor = _getNotificationColor(n.title);
+              : _buildNotificationList(notifications),
+    );
+  }
 
-                    return Dismissible(
-                      key: Key(n.announcementId ?? '${n.title}_$index'),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.delete_outline,
-                            color: Colors.redAccent),
-                      ),
-                      onDismissed: (_) => _dismissSingle(n),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: borderColor),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Icon circle
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: iconColor.withOpacity(0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                _getNotificationIcon(n.title),
-                                color: iconColor,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Content
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    n.title,
-                                    style: TextStyle(
-                                      color: textColor,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    n.message,
-                                    style: TextStyle(
-                                      color: subTextColor,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    _formatTime(n.time),
-                                    style: TextStyle(
-                                      color: hintColor,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Individual delete button
-                            GestureDetector(
-                              onTap: () => _dismissSingle(n),
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 8),
-                                child: Icon(
-                                  Icons.close,
-                                  size: 16,
-                                  color: hintColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+  Widget _buildNotificationList(List<AppNotification> notifications) {
+    final cols = ResponsiveHelper.listGridColumns(context);
+    final padding = ResponsiveHelper.padding(context);
+
+    Widget buildCard(int index) {
+      final n = notifications[index];
+      final iconColor = _getNotificationColor(n.title);
+
+      return Dismissible(
+        key: Key(n.announcementId ?? '${n.title}_$index'),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.redAccent.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.delete_outline, color: Colors.redAccent),
+        ),
+        onDismissed: (_) => _dismissSingle(n),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Theme.of(context).dividerColor),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Icon circle
+              Container(
+                width: ResponsiveHelper.iconSize(context, 42),
+                height: ResponsiveHelper.iconSize(context, 42),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
                 ),
+                child: Icon(
+                  _getNotificationIcon(n.title),
+                  color: iconColor,
+                  size: ResponsiveHelper.iconSize(context, 22),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      n.title,
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                        fontSize: ResponsiveHelper.fontSize(context, 14),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      n.message,
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                        fontSize: ResponsiveHelper.fontSize(context, 13),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _formatTime(n.time),
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .inputDecorationTheme
+                            .hintStyle
+                            ?.color,
+                        fontSize: ResponsiveHelper.fontSize(context, 11),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Individual delete button
+              GestureDetector(
+                onTap: () => _dismissSingle(n),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: Theme.of(context)
+                        .inputDecorationTheme
+                        .hintStyle
+                        ?.color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (cols == 1) {
+      return ListView.builder(
+        padding: padding,
+        itemCount: notifications.length,
+        itemBuilder: (_, index) => buildCard(index),
+      );
+    }
+
+    return GridView.builder(
+      padding: padding,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: cols,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 2.5,
+      ),
+      itemCount: notifications.length,
+      itemBuilder: (_, index) => buildCard(index),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'event_model.dart';
+import '../utils/responsive_helper.dart';
 
 class EventParticipationScreen extends StatefulWidget {
   final EventItem event;
@@ -122,18 +123,45 @@ class _EventParticipationScreenState extends State<EventParticipationScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredList.length,
-                    itemBuilder: (context, index) {
-                      final student = filteredList[index];
-                      final isCompleted = student.completedEvents.contains(widget.event.title);
-                      return _buildParticipantCard(student, isCompleted, cardColor, textColor, subTextColor);
-                    },
-                  ),
+                : _buildParticipantList(filteredList, cardColor, textColor, subTextColor),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildParticipantList(
+    List<Student> students,
+    Color cardColor,
+    Color textColor,
+    Color subTextColor,
+  ) {
+    final cols = ResponsiveHelper.listGridColumns(context);
+    final padding = ResponsiveHelper.padding(context);
+
+    Widget buildCard(Student student) {
+      final isCompleted = student.completedEvents.contains(widget.event.title);
+      return _buildParticipantCard(student, isCompleted, cardColor, textColor, subTextColor);
+    }
+
+    if (cols == 1) {
+      return ListView.builder(
+        padding: padding,
+        itemCount: students.length,
+        itemBuilder: (_, index) => buildCard(students[index]),
+      );
+    }
+
+    return GridView.builder(
+      padding: padding,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: cols,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 2.5,
+      ),
+      itemCount: students.length,
+      itemBuilder: (_, index) => buildCard(students[index]),
     );
   }
 

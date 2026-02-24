@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'data_service.dart';
 import 'event_model.dart';
 import 'event_analytics.dart';
+import '../utils/responsive_helper.dart';
 
 class ManageEventsScreen extends StatefulWidget {
   const ManageEventsScreen({super.key});
@@ -226,7 +227,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: ResponsiveHelper.padding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -234,7 +235,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
             GestureDetector(
               onTap: _pickImage,
               child: Container(
-                height: 160,
+                height: ResponsiveHelper.imageHeight(context, 160),
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: cardColor,

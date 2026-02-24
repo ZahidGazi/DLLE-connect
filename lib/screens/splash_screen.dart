@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../utils/responsive_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data_service.dart';
 import 'login_screen.dart';
@@ -140,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(
-              height: 130,
+              height: ResponsiveHelper.imageHeight(context, 130),
               child: Image.asset(
                 'assets/login_image.png',
                 fit: BoxFit.contain,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'data_service.dart';
 import 'announcement_model.dart';
+import '../utils/responsive_helper.dart';
 
 class AnnouncementScreens extends StatefulWidget {
   const AnnouncementScreens({super.key});
@@ -373,7 +374,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
         onRefresh: _loadAnnouncements,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+          padding: ResponsiveHelper.padding(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -416,7 +417,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                     GestureDetector(
                       onTap: _pickImage,
                       child: Container(
-                        height: 140,
+                        height: ResponsiveHelper.imageHeight(context, 140),
                         width: double.infinity,
                         decoration: BoxDecoration(
                           color: fillColor,
@@ -566,7 +567,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                                   top: Radius.circular(14)),
                               child: Image.network(
                                 item.imageUrl!,
-                                height: 160,
+                                height: ResponsiveHelper.imageHeight(context, 160),
                                 width: double.infinity,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) =>

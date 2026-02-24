@@ -3,6 +3,7 @@ import '../services/supabase_service.dart';
 import 'data_service.dart';
 import 'login_screen.dart';
 import 'email_confirmation_screen.dart';
+import '../utils/responsive_helper.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -162,8 +163,10 @@ class _SignupScreenState extends State<SignupScreen> {
         title: const Text("Sign Up"),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      body: Center(
+        child: SingleChildScrollView(
+        padding: ResponsiveHelper.padding(context),
+        child: ResponsiveWrapper(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -331,7 +334,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Center(
+          Center(
               child: TextButton(
                 onPressed: () {
                   Navigator.pushReplacement(
@@ -346,6 +349,8 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ),
           ],
+        ),
+        ),
         ),
       ),
     );

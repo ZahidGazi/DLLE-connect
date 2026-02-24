@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'event_model.dart';
 import 'student_details.dart';
+import '../utils/responsive_helper.dart';
 
 class ManageStudentsScreen extends StatefulWidget {
   const ManageStudentsScreen({super.key});
@@ -259,17 +260,31 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                             style: TextStyle(color: subTextColor),
                           ),
                         )
-                      : ListView.builder(
-                          itemCount: filteredStudents.length,
-                          itemBuilder: (context, index) {
-                            final student = filteredStudents[index];
-                            return _studentCard(context, student);
-                          },
-                        ),
+                      : _buildStudentList(context),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStudentList(BuildContext context) {
+    final cols = ResponsiveHelper.listGridColumns(context);
+    if (cols == 1) {
+      return ListView.builder(
+        itemCount: filteredStudents.length,
+        itemBuilder: (context, index) => _studentCard(context, filteredStudents[index]),
+      );
+    }
+    return GridView.builder(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: cols,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.3,
+      ),
+      itemCount: filteredStudents.length,
+      itemBuilder: (context, index) => _studentCard(context, filteredStudents[index]),
     );
   }
 
