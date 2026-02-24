@@ -11,6 +11,7 @@ class SupabaseService {
     required String name,
     required String department,
     required String role, // 'student'
+    int yearOfStudy = 1,
   }) async {
     // We do not include 'role' in metadata as it's handled in the database 'users' table
     final AuthResponse response = await _client.auth.signUp(
@@ -20,6 +21,7 @@ class SupabaseService {
         'full_name': name,
         'identifier': identifier,
         'department': department,
+        'year_of_study': yearOfStudy,
         'email': email,
       },
     );

@@ -19,6 +19,12 @@ class EventItem {
   final double latitude;
   final double longitude;
 
+  /// Targeting: null means visible to all courses
+  String? targetCourse;
+
+  /// Targeting: null means visible to all years within the target course
+  int? targetYear;
+
   EventItem({
     this.id,
     required this.title,
@@ -37,6 +43,8 @@ class EventItem {
     this.longitude = 0.0,
     this.joinedcount = 0,
     this.completedcount = 0,
+    this.targetCourse,
+    this.targetYear,
   });
 
   factory EventItem.fromMap(Map<String, dynamic> map) {
@@ -53,6 +61,8 @@ class EventItem {
       imagepath: map['image_path'],
       latitude: (map['latitude'] ?? 0.0).toDouble(),
       longitude: (map['longitude'] ?? 0.0).toDouble(),
+      targetCourse: map['target_course'],
+      targetYear: map['target_year'],
     );
   }
 
@@ -69,6 +79,8 @@ class EventItem {
       'image_path': imagepath,
       'latitude': latitude,
       'longitude': longitude,
+      'target_course': targetCourse,
+      'target_year': targetYear,
     };
   }
 }

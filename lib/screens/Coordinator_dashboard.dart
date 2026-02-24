@@ -1,6 +1,7 @@
 import 'package:dlle_connect/screens/admin_announcement.dart';
 import 'package:dlle_connect/screens/admin_setting_screen.dart';
 import 'package:dlle_connect/screens/manage_events.dart';
+import 'package:dlle_connect/screens/manage_courses_screen.dart';
 import 'package:flutter/material.dart';
 import 'manage_stu_screen.dart';
 import 'data_service.dart';
@@ -123,13 +124,27 @@ class CoordinatorDashboardScreen extends StatelessWidget {
                 ),
 
                 DashboardCard(
-                  icon: Icons.settings,
-                  title: "Settings", onTap: () {
+                  icon: Icons.school,
+                  title: "Manage Courses",
+                  onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AdminSettingsScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const ManageCoursesScreen()),
                     );
-                },
+                  },
+                ),
+
+                DashboardCard(
+                  icon: Icons.settings,
+                  title: "Settings",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminSettingsScreen()),
+                    );
+                  },
                 ),
               ],
             ),

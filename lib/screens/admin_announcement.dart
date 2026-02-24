@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'data_service.dart';
 import 'announcement_model.dart';
 
@@ -13,7 +15,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController messageController = TextEditingController();
 
-  DateTime selectedDate = DateTime.now();
+  File? _selectedImage;
   bool _isLoading = false;
   bool _isPosting = false;
 
@@ -29,45 +31,52 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
     if (mounted) setState(() => _isLoading = false);
   }
 
-  // ---------------- DATE PICKER ----------------
-  Future<void> pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime(2023),
-      lastDate: DateTime(2030),
+  // ---------------- IMAGE PICKER ----------------
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
     );
-    if (picked != null) {
-      setState(() => selectedDate = picked);
+    if (pickedFile != null) {
+      setState(() => _selectedImage = File(pickedFile.path));
     }
   }
 
-  String _formatDate(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  void _removeImage() {
+    setState(() => _selectedImage = null);
   }
 
   // ---------------- POST ANNOUNCEMENT ----------------
   Future<void> _postAnnouncement() async {
-    if (titleController.text.trim().isEmpty || messageController.text.trim().isEmpty) {
+    if (titleController.text.trim().isEmpty ||
+        messageController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields")),
+        const SnackBar(content: Text("Please fill title and message")),
       );
       return;
     }
 
     setState(() => _isPosting = true);
     try {
+      String? imageUrl;
+      if (_selectedImage != null) {
+        imageUrl =
+            await DataService.instance.uploadAnnouncementImage(_selectedImage!);
+      }
+
       await DataService.instance.addAnnouncement(
         titleController.text.trim(),
         messageController.text.trim(),
-        _formatDate(selectedDate),
+        imageUrl: imageUrl,
       );
-      // Refresh the list after posting (Realtime handles notification,
-      // but we need to reload the list for the admin screen)
+
+      // Refresh list (Realtime handles notification push)
       await DataService.instance.fetchAnnouncements();
       titleController.clear();
       messageController.clear();
-      setState(() => selectedDate = DateTime.now());
+      setState(() => _selectedImage = null);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -91,7 +100,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
   Future<void> _showEditDialog(Announcement item) async {
     final editTitleController = TextEditingController(text: item.title);
     final editMessageController = TextEditingController(text: item.message);
-    DateTime editDate = DateTime.tryParse(item.date) ?? DateTime.now();
+    File? editImage;
+    String? editImageUrl = item.imageUrl;
     bool isSaving = false;
 
     await showDialog(
@@ -102,10 +112,12 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
           builder: (ctx, setDialogState) {
             return AlertDialog(
               backgroundColor: const Color(0xFF1F2933),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               title: const Text(
                 "Edit Announcement",
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -126,49 +138,81 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                       decoration: _inputDecoration("Message"),
                     ),
                     const SizedBox(height: 12),
-                    // Date picker
+                    // Image picker
                     GestureDetector(
                       onTap: () async {
-                        final picked = await showDatePicker(
-                          context: ctx,
-                          initialDate: editDate,
-                          firstDate: DateTime(2023),
-                          lastDate: DateTime(2030),
+                        final picker = ImagePicker();
+                        final pickedFile = await picker.pickImage(
+                          source: ImageSource.gallery,
+                          imageQuality: 80,
                         );
-                        if (picked != null) {
-                          setDialogState(() => editDate = picked);
+                        if (pickedFile != null) {
+                          setDialogState(() {
+                            editImage = File(pickedFile.path);
+                            editImageUrl = null; // will be replaced on save
+                          });
                         }
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        height: 120,
+                        width: double.infinity,
                         decoration: BoxDecoration(
                           color: const Color(0xFF0D1117),
                           borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white12),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              _formatDate(editDate),
-                              style: const TextStyle(color: Colors.white70),
-                            ),
-                            const Icon(Icons.calendar_today, color: Colors.white54, size: 18),
-                          ],
-                        ),
+                        child: editImage != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.file(editImage!,
+                                    fit: BoxFit.cover),
+                              )
+                            : editImageUrl != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.network(editImageUrl!,
+                                        fit: BoxFit.cover),
+                                  )
+                                : Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: const [
+                                      Icon(Icons.add_a_photo,
+                                          color: Colors.white38, size: 32),
+                                      SizedBox(height: 6),
+                                      Text("Tap to add image",
+                                          style: TextStyle(
+                                              color: Colors.white38,
+                                              fontSize: 12)),
+                                    ],
+                                  ),
                       ),
                     ),
+                    if (editImage != null || editImageUrl != null)
+                      TextButton.icon(
+                        onPressed: () => setDialogState(() {
+                          editImage = null;
+                          editImageUrl = null;
+                        }),
+                        icon: const Icon(Icons.delete,
+                            color: Colors.redAccent, size: 16),
+                        label: const Text("Remove image",
+                            style: TextStyle(
+                                color: Colors.redAccent, fontSize: 12)),
+                      ),
                   ],
                 ),
               ),
               actions: [
                 TextButton(
                   onPressed: isSaving ? null : () => Navigator.pop(ctx),
-                  child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
+                  child: const Text("Cancel",
+                      style: TextStyle(color: Colors.white54)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: isSaving
                       ? null
@@ -176,17 +220,24 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                           if (editTitleController.text.trim().isEmpty ||
                               editMessageController.text.trim().isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Please fill all fields")),
+                              const SnackBar(
+                                  content: Text("Please fill all fields")),
                             );
                             return;
                           }
                           setDialogState(() => isSaving = true);
                           try {
+                            String? finalImageUrl = editImageUrl;
+                            // Upload new image if selected
+                            if (editImage != null) {
+                              finalImageUrl = await DataService.instance
+                                  .uploadAnnouncementImage(editImage!);
+                            }
                             await DataService.instance.updateAnnouncement(
                               item.id!,
                               editTitleController.text.trim(),
                               editMessageController.text.trim(),
-                              _formatDate(editDate),
+                              imageUrl: finalImageUrl,
                             );
                             if (mounted) setState(() {});
                             if (ctx.mounted) Navigator.pop(ctx);
@@ -202,7 +253,9 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                             setDialogState(() => isSaving = false);
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+                                SnackBar(
+                                    content: Text("Error: $e"),
+                                    backgroundColor: Colors.red),
                               );
                             }
                           }
@@ -211,9 +264,11 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text("Save", style: TextStyle(color: Colors.white)),
+                      : const Text("Save",
+                          style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -229,10 +284,12 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1F2933),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           "Delete Announcement",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: Text(
           'Are you sure you want to delete "${item.title}"? This cannot be undone.',
@@ -241,15 +298,18 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
+            child: const Text("Cancel",
+                style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+            child:
+                const Text("Delete", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -270,7 +330,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+            SnackBar(
+                content: Text("Error: $e"), backgroundColor: Colors.red),
           );
         }
       }
@@ -294,7 +355,6 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               // ---------------- NEW ANNOUNCEMENT FORM ----------------
               Container(
                 padding: const EdgeInsets.all(16),
@@ -330,24 +390,57 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                     ),
                     const SizedBox(height: 12),
 
+                    // -------- IMAGE PICKER --------
                     GestureDetector(
-                      onTap: pickDate,
+                      onTap: _pickImage,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        height: 140,
+                        width: double.infinity,
                         decoration: BoxDecoration(
                           color: const Color(0xFF0D1117),
                           borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white12),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              _formatDate(selectedDate),
-                              style: const TextStyle(color: Colors.white70),
-                            ),
-                            const Icon(Icons.calendar_today, color: Colors.white54, size: 18),
-                          ],
-                        ),
+                        child: _selectedImage != null
+                            ? Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(_selectedImage!,
+                                        fit: BoxFit.cover),
+                                  ),
+                                  Positioned(
+                                    top: 6,
+                                    right: 6,
+                                    child: GestureDetector(
+                                      onTap: _removeImage,
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        padding: const EdgeInsets.all(4),
+                                        child: const Icon(Icons.close,
+                                            color: Colors.white, size: 16),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.add_a_photo,
+                                      size: 36, color: Colors.white38),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    "Tap to add image (optional)",
+                                    style: TextStyle(
+                                        color: Colors.white38, fontSize: 13),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -374,7 +467,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                               )
                             : const Text(
                                 "Post Announcement",
-                                style: TextStyle(fontSize: 16, color: Colors.white),
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.white),
                               ),
                       ),
                     ),
@@ -398,7 +492,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                   ),
                   Text(
                     "${announcements.length} total",
-                    style: const TextStyle(color: Colors.white54, fontSize: 13),
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 13),
                   ),
                 ],
               ),
@@ -418,7 +513,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                     child: Text(
                       "No announcements yet.\nPost one above!",
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white54, fontSize: 15),
+                      style:
+                          TextStyle(color: Colors.white54, fontSize: 15),
                     ),
                   ),
                 )
@@ -431,7 +527,6 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                     final item = announcements[index];
                     return Container(
                       margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1F2933),
                         borderRadius: BorderRadius.circular(14),
@@ -440,56 +535,92 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Title + action buttons row
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  item.title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          // Image (if any)
+                          if (item.imageUrl != null &&
+                              item.imageUrl!.isNotEmpty)
+                            ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(14)),
+                              child: Image.network(
+                                item.imageUrl!,
+                                height: 160,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox.shrink(),
+                              ),
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Title + action buttons row
+                                Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.title,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () =>
+                                          _showEditDialog(item),
+                                      icon: const Icon(
+                                          Icons.edit_outlined,
+                                          color: Colors.blueAccent,
+                                          size: 20),
+                                      tooltip: "Edit",
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      onPressed: () =>
+                                          _confirmDelete(item),
+                                      icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.redAccent,
+                                          size: 20),
+                                      tooltip: "Delete",
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              // Edit button
-                              IconButton(
-                                onPressed: () => _showEditDialog(item),
-                                icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
-                                tooltip: "Edit",
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                              const SizedBox(width: 8),
-                              // Delete button
-                              IconButton(
-                                onPressed: () => _confirmDelete(item),
-                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                                tooltip: "Delete",
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          // Date
-                          Row(
-                            children: [
-                              const Icon(Icons.calendar_today, color: Colors.white38, size: 12),
-                              const SizedBox(width: 4),
-                              Text(
-                                item.date,
-                                style: const TextStyle(color: Colors.white54, fontSize: 12),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          // Message
-                          Text(
-                            item.message,
-                            style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+                                const SizedBox(height: 6),
+                                // Date from createdAt
+                                Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today,
+                                        color: Colors.white38, size: 12),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      item.formattedDate,
+                                      style: const TextStyle(
+                                          color: Colors.white54,
+                                          fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                // Message
+                                Text(
+                                  item.message,
+                                  style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                      height: 1.5),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
