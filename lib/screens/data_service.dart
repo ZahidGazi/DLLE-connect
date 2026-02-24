@@ -162,12 +162,20 @@ class DataService {
   }
 
   Future<void> logout() async {
+    try {
+      await _supabase.auth.signOut();
+    } catch (e) {
+      debugPrint("Supabase signOut error (ignored): $e");
+    }
     isLoggedIn = false;
     studentName = "";
     studentId = "";
     studentCourse = "";
     studentYearOfStudy = 1;
     totalHours = 0;
+    _events = [];
+    notifications = [];
+    notificationCountNotifier.value = 0;
     await clearLoginSession();
   }
 

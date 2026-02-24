@@ -162,12 +162,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: () {
-                DataService.instance.logout();
+              onPressed: () async {
+                await DataService.instance.logout();
+                if (!mounted) return;
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
+                  (route) => false,
                 );
               },
               style: ElevatedButton.styleFrom(

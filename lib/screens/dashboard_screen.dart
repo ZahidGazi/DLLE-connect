@@ -32,18 +32,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _pages[_currentIndex],
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        color: navTheme.backgroundColor,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            navItem(Icons.home, "Dashboard", 0),
-            navItem(Icons.campaign, "Announcement", 1),
-            navItem(Icons.calendar_today, "Events", 2),
-            navItem(Icons.upload, "Upload", 3),
-            navItem(Icons.settings, "Settings", 4),
-          ],
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          color: navTheme.backgroundColor,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              navItem(Icons.home, "Dashboard", 0),
+              navItem(Icons.campaign, "Announcement", 1),
+              navItem(Icons.calendar_today, "Events", 2),
+              navItem(Icons.upload, "Upload", 3),
+              navItem(Icons.settings, "Settings", 4),
+            ],
+          ),
         ),
       ),
     );
