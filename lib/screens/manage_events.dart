@@ -36,6 +36,14 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
   void initState() {
     super.initState();
     _loadCourses();
+    _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    await DataService.instance.fetchEvents();
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _loadCourses() async {
@@ -127,13 +135,16 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       _selectedTargetCourse = event.targetCourse;
       _selectedTargetYear = event.targetYear;
 
-      // imagepath may be a remote URL or a local file path
+      // imagepath may be a remote HTTPS URL, a blob URL, or a local file path
       if (event.imagepath != null) {
-        if (event.imagepath!.startsWith('http')) {
+        if (event.imagepath!.startsWith('https://') ||
+            event.imagepath!.startsWith('http://')) {
+          // Valid remote URL from Supabase Storage
           _existingImageUrl = event.imagepath;
           _selectedImage = null;
         } else {
-          _selectedImage = File(event.imagepath!);
+          // blob: URLs (web-only, temporary) or unrecognised paths — treat as no image
+          _selectedImage = null;
           _existingImageUrl = null;
         }
       } else {
@@ -601,19 +612,17 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(8),
                                   color: Colors.black26,
-                                  image: event.imagepath != null
+                                  image: (event.imagepath != null &&
+                                          (event.imagepath!.startsWith('https://') ||
+                                           event.imagepath!.startsWith('http://')))
                                       ? DecorationImage(
-                                          image: event.imagepath!
-                                                  .startsWith('http')
-                                              ? NetworkImage(
-                                                      event.imagepath!)
-                                                  as ImageProvider
-                                              : FileImage(
-                                                  File(event.imagepath!)),
+                                          image: NetworkImage(event.imagepath!),
                                           fit: BoxFit.cover)
                                       : null,
                                 ),
-                                child: event.imagepath == null
+                                child: (event.imagepath == null ||
+                                        (!event.imagepath!.startsWith('https://') &&
+                                         !event.imagepath!.startsWith('http://')))
                                     ? const Icon(Icons.event,
                                         color: Colors.blueAccent)
                                     : null,
