@@ -23,13 +23,12 @@ void main() async {
   // Load saved theme preference before building the UI
   await DataService.instance.loadThemePreference();
 
-  // Load announcements as notifications so they're available immediately
-  await DataService.instance.loadNotificationsFromAnnouncements();
-
-  // Start Supabase Realtime subscription for announcements (notifies all users)
-  DataService.instance.initRealtimeSubscriptions();
-
   runApp(const DLLEApp());
+
+  // Load announcements and start realtime subscriptions AFTER the UI is up
+  // so they don't block app startup if the network is slow or session is stale.
+  DataService.instance.loadNotificationsFromAnnouncements();
+  DataService.instance.initRealtimeSubscriptions();
 }
 
 class DLLEApp extends StatefulWidget {
