@@ -22,6 +22,7 @@ class _EventsScreenState extends State<EventsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Filtering by course/year is already done inside DataService.fetchEvents()
     final events = DataService.instance.events;
 
     final cardColor = Theme.of(context).cardTheme.color;

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'data_service.dart';
@@ -24,6 +23,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
   TimeOfDay? startTime;
   TimeOfDay? endTime;
   File? _selectedImage;
+  String? _existingImageUrl; // URL from Supabase Storage (when editing)
 
   // Targeting
   String? _selectedTargetCourse; // null = "All Courses"
@@ -127,10 +127,18 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       _selectedTargetCourse = event.targetCourse;
       _selectedTargetYear = event.targetYear;
 
+      // imagepath may be a remote URL or a local file path
       if (event.imagepath != null) {
-        _selectedImage = File(event.imagepath!);
+        if (event.imagepath!.startsWith('http')) {
+          _existingImageUrl = event.imagepath;
+          _selectedImage = null;
+        } else {
+          _selectedImage = File(event.imagepath!);
+          _existingImageUrl = null;
+        }
       } else {
         _selectedImage = null;
+        _existingImageUrl = null;
       }
     });
   }
@@ -147,6 +155,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       startTime = null;
       endTime = null;
       _selectedImage = null;
+      _existingImageUrl = null;
       _selectedTargetCourse = null;
       _selectedTargetYear = null;
     });
@@ -223,27 +232,50 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       color: subTextColor.withOpacity(0.3)),
                 ),
                 child: _selectedImage != null
+                    // Newly picked local file
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        child: kIsWeb
-                            ? Image.network(_selectedImage!.path,
-                                fit: BoxFit.cover)
-                            : Image.file(_selectedImage!,
-                                fit: BoxFit.cover),
+                        child: Image.file(_selectedImage!,
+                            fit: BoxFit.cover),
                       )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_a_photo,
-                              size: 40,
-                              color: subTextColor.withOpacity(0.6)),
-                          const SizedBox(height: 8),
-                          Text("Tap to add Event Image",
-                              style: TextStyle(
-                                  color:
-                                      subTextColor.withOpacity(0.6))),
-                        ],
-                      ),
+                    : _existingImageUrl != null
+                        // Existing remote URL from Supabase Storage
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.network(
+                              _existingImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Column(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.broken_image,
+                                      size: 40,
+                                      color:
+                                          subTextColor.withOpacity(0.5)),
+                                  const SizedBox(height: 8),
+                                  Text("Tap to change image",
+                                      style: TextStyle(
+                                          color: subTextColor
+                                              .withOpacity(0.6))),
+                                ],
+                              ),
+                            ),
+                          )
+                        // No image
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_a_photo,
+                                  size: 40,
+                                  color: subTextColor.withOpacity(0.6)),
+                              const SizedBox(height: 8),
+                              Text("Tap to add Event Image",
+                                  style: TextStyle(
+                                      color:
+                                          subTextColor.withOpacity(0.6))),
+                            ],
+                          ),
               ),
             ),
 
@@ -436,6 +468,26 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                   String endTimeStr = _formatTime(
                       endTime ?? const TimeOfDay(hour: 14, minute: 0));
 
+                  // Upload image to Supabase Storage if a new local file was picked
+                  String? finalImageUrl = _existingImageUrl;
+                  if (_selectedImage != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text("Uploading image..."),
+                          duration: Duration(seconds: 2)),
+                    );
+                    finalImageUrl = await DataService.instance
+                        .uploadEventImage(_selectedImage!);
+                    if (finalImageUrl == null && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                "⚠️ Image upload failed. Event saved without image."),
+                            backgroundColor: Colors.orange),
+                      );
+                    }
+                  }
+
                   if (_editingEvent == null) {
                     final event = EventItem(
                       title: titleController.text,
@@ -443,7 +495,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       location: locationController.text,
                       date: dateStr,
                       hours: int.parse(hoursController.text),
-                      imagepath: _selectedImage?.path,
+                      imagepath: finalImageUrl,
                       eventdate: startDate!,
                       starttime: startTimeStr,
                       endtime: endTimeStr,
@@ -459,7 +511,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       location: locationController.text,
                       date: dateStr,
                       hours: int.parse(hoursController.text),
-                      imagepath: _selectedImage?.path,
+                      imagepath: finalImageUrl,
                       joined: _editingEvent!.joined,
                       completed: _editingEvent!.completed,
                       eventdate: startDate!,
@@ -551,7 +603,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                                   color: Colors.black26,
                                   image: event.imagepath != null
                                       ? DecorationImage(
-                                          image: kIsWeb
+                                          image: event.imagepath!
+                                                  .startsWith('http')
                                               ? NetworkImage(
                                                       event.imagepath!)
                                                   as ImageProvider

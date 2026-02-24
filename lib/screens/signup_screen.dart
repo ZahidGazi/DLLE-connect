@@ -19,7 +19,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   String? _selectedCourse;
   int? _selectedYear;
-  int _maxYear = 4;
+  final int _maxYear = 4;
 
   List<Map<String, dynamic>> _courses = [];
   bool _isLoadingCourses = true;
@@ -243,7 +243,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       )
                     : DropdownButtonFormField<String>(
-                        value: _selectedCourse,
+                        initialValue: _selectedCourse,
                         decoration: InputDecoration(
                           hintText: "Select Course",
                           hintStyle:
@@ -283,7 +283,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
             // -------- YEAR OF STUDY DROPDOWN --------
             DropdownButtonFormField<int>(
-              value: _selectedYear,
+              initialValue: _selectedYear,
               decoration: InputDecoration(
                 hintText: _selectedCourse == null
                     ? "Select course first"

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'event_model.dart';
 import 'data_service.dart';
@@ -81,23 +80,40 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               child: widget.event.imagepath != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(14),
-                      child: kIsWeb
+                      child: widget.event.imagepath!.startsWith('http')
                           ? Image.network(
                               widget.event.imagepath!,
                               fit: BoxFit.cover,
-                              errorBuilder: (ctx, err, stack) => Icon(
-                                Icons.broken_image,
-                                size: 60,
-                                color: subTextColor.withOpacity(0.5),
+                              loadingBuilder: (ctx, child, progress) {
+                                if (progress == null) return child;
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    value: progress.expectedTotalBytes != null
+                                        ? progress.cumulativeBytesLoaded /
+                                            progress.expectedTotalBytes!
+                                        : null,
+                                    strokeWidth: 2,
+                                    color: Colors.blueAccent,
+                                  ),
+                                );
+                              },
+                              errorBuilder: (ctx, err, stack) => Center(
+                                child: Icon(
+                                  Icons.broken_image,
+                                  size: 60,
+                                  color: subTextColor.withOpacity(0.5),
+                                ),
                               ),
                             )
                           : Image.file(
                               File(widget.event.imagepath!),
                               fit: BoxFit.cover,
-                              errorBuilder: (ctx, err, stack) => Icon(
-                                Icons.broken_image,
-                                size: 60,
-                                color: subTextColor.withOpacity(0.5),
+                              errorBuilder: (ctx, err, stack) => Center(
+                                child: Icon(
+                                  Icons.broken_image,
+                                  size: 60,
+                                  color: subTextColor.withOpacity(0.5),
+                                ),
                               ),
                             ),
                     )

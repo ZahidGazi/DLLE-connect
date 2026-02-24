@@ -412,74 +412,88 @@ class _ManageCoursesScreenState extends State<ManageCoursesScreen> {
                               child: const Icon(Icons.school,
                                   color: Colors.blueAccent, size: 24),
                             ),
-                            title: Text(
-                              course['name'] as String,
-                              style: TextStyle(
-                                color: textColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.calendar_view_week,
-                                      size: 14,
-                                      color: subTextColor.withOpacity(0.7)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    "Max $maxYear ${maxYear == 1 ? 'year' : 'years'}",
-                                    style: TextStyle(
-                                        color: subTextColor, fontSize: 13),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  // Year badges
-                                  ...List.generate(maxYear, (i) => i + 1)
-                                      .map(
-                                        (y) => Container(
-                                          margin: const EdgeInsets.only(
-                                              right: 4),
-                                          padding:
-                                              const EdgeInsets.symmetric(
-                                                  horizontal: 6,
-                                                  vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blueAccent
-                                                .withOpacity(0.12),
-                                            borderRadius:
-                                                BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            "Y$y",
-                                            style: const TextStyle(
-                                                color: Colors.blueAccent,
-                                                fontSize: 10,
-                                                fontWeight:
-                                                    FontWeight.bold),
-                                          ),
-                                        ),
-                                      ),
-                                ],
-                              ),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
+                            title: Row(
                               children: [
+                                Expanded(
+                                  child: Text(
+                                    course['name'] as String,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                // Action buttons inline with title
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined,
                                       color: Colors.blueAccent, size: 20),
                                   onPressed: () =>
                                       _showEditCourseDialog(course),
                                   tooltip: "Edit",
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                      minWidth: 32, minHeight: 32),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete_outline,
                                       color: Colors.redAccent, size: 20),
                                   onPressed: () => _confirmDelete(course),
                                   tooltip: "Delete",
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                      minWidth: 32, minHeight: 32),
                                 ),
                               ],
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.calendar_view_week,
+                                          size: 14,
+                                          color: subTextColor.withOpacity(0.7)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "Max $maxYear ${maxYear == 1 ? 'year' : 'years'}",
+                                        style: TextStyle(
+                                            color: subTextColor, fontSize: 13),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  // Year badges in a Wrap so they never overflow
+                                  Wrap(
+                                    spacing: 4,
+                                    runSpacing: 4,
+                                    children: List.generate(maxYear, (i) => i + 1)
+                                        .map(
+                                          (y) => Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blueAccent
+                                                  .withOpacity(0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              "Y$y",
+                                              style: const TextStyle(
+                                                  color: Colors.blueAccent,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );

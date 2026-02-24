@@ -547,6 +547,26 @@ class DataService {
     }
   }
 
+  /// Upload an event image to Supabase Storage (events/ folder).
+  /// Returns the public URL of the uploaded image, or null on failure.
+  Future<String?> uploadEventImage(File imageFile) async {
+    try {
+      final fileName =
+          'events/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await _supabase.storage
+          .from('dlle-connect')
+          .upload(fileName, imageFile,
+              fileOptions:
+                  const FileOptions(contentType: 'image/jpeg', upsert: true));
+      final publicUrl =
+          _supabase.storage.from('dlle-connect').getPublicUrl(fileName);
+      return publicUrl;
+    } catch (e) {
+      debugPrint("Error uploading event image: $e");
+      return null;
+    }
+  }
+
   Future<void> addAnnouncement(String title, String message,
       {String? imageUrl}) async {
     await _supabase.from('announcements').insert({
