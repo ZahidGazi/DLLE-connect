@@ -13,13 +13,18 @@ class StudentDetailsScreen extends StatefulWidget {
 
 class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   Future<void> _deleteStudent() async {
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1F2933),
-        title: const Text("Remove Student", style: TextStyle(color: Colors.white)),
-        content: Text("Are you sure you want to remove ${widget.student.fullName} from the system? This will also delete their event registrations.",
-            style: const TextStyle(color: Colors.white70)),
+        backgroundColor: theme.cardTheme.color,
+        title: Text("Remove Student",
+            style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+        content: Text(
+          "Are you sure you want to remove ${widget.student.fullName} from the system? "
+          "This will also delete their event registrations.",
+          style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -27,7 +32,8 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Remove", style: TextStyle(color: Colors.redAccent)),
+            child: const Text("Remove",
+                style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -40,7 +46,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Student removed successfully")),
           );
-          Navigator.pop(context, true); // Return true to indicate deletion
+          Navigator.pop(context, true);
         }
       } catch (e) {
         if (mounted) {
@@ -54,11 +60,17 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // We use the full events list from DataService to show details
+    final theme = Theme.of(context);
+    final cardColor = theme.cardTheme.color;
+    final textColor = theme.textTheme.bodyLarge?.color;
+    final subTextColor = theme.textTheme.bodyMedium?.color;
+
     final allEvents = DataService.instance.events;
-    
+
     final joinedEvents = allEvents
-        .where((e) => widget.student.joinedEvents.contains(e.title) && !widget.student.completedEvents.contains(e.title))
+        .where((e) =>
+            widget.student.joinedEvents.contains(e.title) &&
+            !widget.student.completedEvents.contains(e.title))
         .toList();
 
     final completedEvents = allEvents
@@ -66,24 +78,21 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
         .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
-
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("Student Details"),
         centerTitle: true,
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             // ---------------- PROFILE CARD ----------------
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1F2933),
+                color: cardColor,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -100,8 +109,8 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                       children: [
                         Text(
                           widget.student.fullName,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: textColor,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -109,11 +118,11 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           "ID: ${widget.student.identifier}",
-                          style: const TextStyle(color: Colors.white70),
+                          style: TextStyle(color: subTextColor),
                         ),
                         Text(
                           widget.student.department,
-                          style: const TextStyle(color: Colors.white70),
+                          style: TextStyle(color: subTextColor),
                         ),
                       ],
                     ),
@@ -128,15 +137,15 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1F2933),
+                color: cardColor,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     "Total DLLE Hours",
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: TextStyle(color: subTextColor, fontSize: 16),
                   ),
                   Row(
                     children: [
@@ -144,8 +153,8 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                       const SizedBox(width: 6),
                       Text(
                         "${widget.student.totalHours}",
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: textColor,
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
@@ -159,38 +168,44 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
             const SizedBox(height: 24),
 
             // ---------------- JOINED EVENTS ----------------
-            sectionTitle("Joined Events (Ongoing)"),
+            _sectionTitle("Joined Events (Ongoing)", textColor),
             joinedEvents.isEmpty
-                ? emptyText("No ongoing joined events")
+                ? _emptyText("No ongoing joined events", subTextColor)
                 : Column(
-              children: joinedEvents
-                  .map((e) => eventTile(
-                icon: Icons.schedule,
-                iconColor: Colors.orangeAccent,
-                title: e.title,
-                subtitle: e.date,
-                status: "Ongoing",
-              ))
-                  .toList(),
-            ),
+                    children: joinedEvents
+                        .map((e) => _eventTile(
+                              icon: Icons.schedule,
+                              iconColor: Colors.orangeAccent,
+                              title: e.title,
+                              subtitle: e.date,
+                              status: "Ongoing",
+                              cardColor: cardColor,
+                              textColor: textColor,
+                              subTextColor: subTextColor,
+                            ))
+                        .toList(),
+                  ),
 
             const SizedBox(height: 24),
 
             // ---------------- COMPLETED EVENTS ----------------
-            sectionTitle("Completed Events"),
+            _sectionTitle("Completed Events", textColor),
             completedEvents.isEmpty
-                ? emptyText("No completed events")
+                ? _emptyText("No completed events", subTextColor)
                 : Column(
-              children: completedEvents
-                  .map((e) => eventTile(
-                icon: Icons.check_circle,
-                iconColor: Colors.greenAccent,
-                title: e.title,
-                subtitle: "${e.date}  •  ${e.hours} hrs",
-                status: "Completed",
-              ))
-                  .toList(),
-            ),
+                    children: completedEvents
+                        .map((e) => _eventTile(
+                              icon: Icons.check_circle,
+                              iconColor: Colors.greenAccent,
+                              title: e.title,
+                              subtitle: "${e.date}  •  ${e.hours} hrs",
+                              status: "Completed",
+                              cardColor: cardColor,
+                              textColor: textColor,
+                              subTextColor: subTextColor,
+                            ))
+                        .toList(),
+                  ),
 
             const SizedBox(height: 40),
 
@@ -203,9 +218,11 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.redAccent.withOpacity(0.1),
                   foregroundColor: Colors.redAccent,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 12),
                   side: const BorderSide(color: Colors.redAccent),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ),
@@ -216,15 +233,13 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     );
   }
 
-  // ---------------- UI HELPERS ----------------
-
-  Widget sectionTitle(String title) {
+  Widget _sectionTitle(String title, Color? color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: color,
           fontSize: 16,
           fontWeight: FontWeight.bold,
         ),
@@ -232,18 +247,21 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     );
   }
 
-  Widget eventTile({
+  Widget _eventTile({
     required IconData icon,
     required Color iconColor,
     required String title,
     required String subtitle,
     required String status,
+    required Color? cardColor,
+    required Color? textColor,
+    required Color? subTextColor,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2933),
+        color: cardColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -256,22 +274,21 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: textColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(color: Colors.white54),
+                  style: TextStyle(color: subTextColor),
                 ),
               ],
             ),
           ),
           Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: status == "Completed"
                   ? Colors.green.withOpacity(0.2)
@@ -294,13 +311,10 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     );
   }
 
-  Widget emptyText(String text) {
+  Widget _emptyText(String text, Color? color) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        text,
-        style: const TextStyle(color: Colors.white54),
-      ),
+      child: Text(text, style: TextStyle(color: color)),
     );
   }
 }

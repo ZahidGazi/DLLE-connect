@@ -18,11 +18,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
     _loadNotifications();
   }
 
-  /// Load notifications from announcements, then clear the badge.
   Future<void> _loadNotifications() async {
     setState(() => _isLoading = true);
     await DataService.instance.loadNotificationsFromAnnouncements();
-    // Clear the badge count when the user opens the notification screen
     await DataService.instance.clearNotificationCount();
     if (mounted) setState(() => _isLoading = false);
   }
@@ -30,7 +28,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final diff = now.difference(time);
-
     if (diff.inMinutes < 1) return "Just now";
     if (diff.inMinutes < 60) return "${diff.inMinutes}m ago";
     if (diff.inHours < 24) return "${diff.inHours}h ago";
@@ -69,13 +66,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final cardColor = theme.cardTheme.color;
+    final textColor = theme.textTheme.bodyLarge?.color;
+    final subTextColor = theme.textTheme.bodyMedium?.color;
+    final hintColor = theme.inputDecorationTheme.hintStyle?.color;
+    final borderColor = theme.dividerColor;
     final List<AppNotification> notifications =
         DataService.instance.notifications;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF0D1117) : const Color(0xFFFFFFFF),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("Notifications"),
         actions: [
@@ -99,24 +100,18 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       Icon(
                         Icons.notifications_none,
                         size: 72,
-                        color: isDark ? Colors.white24 : Colors.black26,
+                        color: hintColor,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         "No notifications yet",
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: isDark ? Colors.white54 : Colors.black54,
-                        ),
+                        style: TextStyle(fontSize: 16, color: subTextColor),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         "You'll be notified when new announcements\nor events are posted.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark ? Colors.white38 : Colors.black38,
-                        ),
+                        style: TextStyle(fontSize: 13, color: hintColor),
                       ),
                     ],
                   ),
@@ -147,14 +142,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF1F2933)
-                              : const Color(0xFFEEF2F7),
+                          color: cardColor,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color:
-                                isDark ? Colors.white10 : Colors.black12,
-                          ),
+                          border: Border.all(color: borderColor),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,15 +167,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             // Content
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     n.title,
                                     style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white
-                                          : Colors.black87,
+                                      color: textColor,
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -194,9 +181,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                   Text(
                                     n.message,
                                     style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white70
-                                          : Colors.black54,
+                                      color: subTextColor,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -204,9 +189,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                   Text(
                                     _formatTime(n.time),
                                     style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white38
-                                          : Colors.black38,
+                                      color: hintColor,
                                       fontSize: 11,
                                     ),
                                   ),
@@ -221,9 +204,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 child: Icon(
                                   Icons.close,
                                   size: 16,
-                                  color: isDark
-                                      ? Colors.white38
-                                      : Colors.black38,
+                                  color: hintColor,
                                 ),
                               ),
                             ),

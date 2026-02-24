@@ -17,7 +17,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController identifierController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  String selectedRole = 'student'; // Default role
+  String selectedRole = 'student';
   bool isLoading = false;
 
   void login() async {
@@ -40,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
           const SnackBar(content: Text("Please enter a valid Student ID or Email")),
         );
         return;
-      } 
+      }
 
       if (!isEmail && identifier.length < 5) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -68,7 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final user = response.user;
       if (user != null) {
-        // Fetch actual role from the 'users' table in the database
         final userData = await Supabase.instance.client
             .from('users')
             .select('role, full_name, identifier')
@@ -76,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
             .maybeSingle();
 
         final actualRole = userData?['role'] ?? 'student';
-        
+
         if (actualRole != selectedRole) {
           await SupabaseService.signOut();
           if (mounted) {
@@ -125,9 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (errorMessage.contains("Email not confirmed")) {
-          // Navigate to email confirmation screen
           String email = identifierController.text.trim();
-          // If student used an ID, try to resolve email
           if (selectedRole == 'student' && !email.contains('@')) {
             try {
               final userData = await Supabase.instance.client
@@ -162,8 +159,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.bodyLarge?.color;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -175,23 +175,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Image.asset(
                   'assets/login_image.png',
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => 
+                  errorBuilder: (context, error, stackTrace) =>
                       const Icon(Icons.account_circle, size: 100, color: Colors.blueAccent),
                 ),
               ),
               const SizedBox(height: 30),
-              const Text(
+              Text(
                 "Welcome to DLLE Connect",
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: theme.textTheme.titleLarge?.copyWith(fontSize: 26),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 "Sign in to continue",
-                style: TextStyle(color: Colors.black),
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
               ),
               const SizedBox(height: 30),
 
@@ -226,14 +222,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              
+
               inputField(
-                identifierController, 
+                identifierController,
                 selectedRole == 'student' ? "Student ID or Email" : "Admin Email",
-                keyboardType: selectedRole == 'student' ? TextInputType.text : TextInputType.emailAddress,
+                keyboardType: selectedRole == 'student'
+                    ? TextInputType.text
+                    : TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
-              
+
               inputField(passwordController, "Password", isPassword: true),
               const SizedBox(height: 30),
 
@@ -244,6 +242,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: isLoading ? null : login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
@@ -263,14 +263,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const SignupScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const SignupScreen()),
                     );
                   },
-                  child: const Text(
+                  child: Text(
                     "New student? Sign up",
-                    style: TextStyle(color: Colors.black),
+                    style: TextStyle(color: textColor),
                   ),
                 ),
             ],
@@ -280,17 +278,23 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget inputField(TextEditingController controller, String hint, {bool isPassword = false, TextInputType keyboardType = TextInputType.text}) {
+  Widget inputField(
+    TextEditingController controller,
+    String hint, {
+    bool isPassword = false,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    final theme = Theme.of(context);
     return TextField(
       controller: controller,
       obscureText: isPassword,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.black),
+      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.black45),
+        hintStyle: theme.inputDecorationTheme.hintStyle,
         filled: true,
-        fillColor: const Color(0xFFF1F1F1),
+        fillColor: theme.inputDecorationTheme.fillColor,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

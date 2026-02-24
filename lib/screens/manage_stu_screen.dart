@@ -17,7 +17,6 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
   List<Student> filteredStudents = [];
   bool _isLoading = true;
 
-  // Filter States
   String searchQuery = "";
   String selectedSort = "None";
   String selectedCourse = "All";
@@ -41,28 +40,23 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
     }
   }
 
-  // ---------- MASTER FILTER LOGIC ----------
   void _applyFilters() {
     setState(() {
       filteredStudents = allStudents.where((student) {
-        // 1. Search Filter
-        final matchesSearch = student.fullName.toLowerCase().contains(searchQuery.toLowerCase()) ||
-            student.identifier.toLowerCase().contains(searchQuery.toLowerCase());
-
-        // 2. Course Filter
-        final matchesCourse = (selectedCourse == "All") ||
-            (student.department == selectedCourse);
-
-        // 3. Status Filter (120 Hours Rule)
+        final matchesSearch =
+            student.fullName.toLowerCase().contains(searchQuery.toLowerCase()) ||
+                student.identifier
+                    .toLowerCase()
+                    .contains(searchQuery.toLowerCase());
+        final matchesCourse =
+            (selectedCourse == "All") || (student.department == selectedCourse);
         bool isCompleted = student.totalHours >= 120;
         final matchesStatus = (selectedStatus == "All") ||
             (selectedStatus == "Completed" && isCompleted) ||
             (selectedStatus == "Ongoing" && !isCompleted);
-
         return matchesSearch && matchesCourse && matchesStatus;
       }).toList();
 
-      // 4. Sort Logic
       if (selectedSort == "Low to High Hours") {
         filteredStudents.sort((a, b) => a.totalHours.compareTo(b.totalHours));
       } else if (selectedSort == "High to Low Hours") {
@@ -72,24 +66,27 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
   }
 
   Future<void> _deleteStudent(Student student) async {
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1F2933),
-        title: const Text("Remove Student", style: TextStyle(color: Colors.white)),
-        content: Text("Are you sure you want to remove ${student.fullName} from the system? This will also delete their event registrations.",
-            style: const TextStyle(color: Colors.white70)),
+        backgroundColor: theme.cardTheme.color,
+        title: Text("Remove Student",
+            style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+        content: Text(
+          "Are you sure you want to remove ${student.fullName} from the system? "
+          "This will also delete their event registrations.",
+          style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+        ),
         actions: [
-          padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("Cancel"),
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Remove", style: TextStyle(color: Colors.redAccent)),
+            child: const Text("Remove",
+                style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -114,23 +111,29 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
     }
   }
 
-  Widget padding({required Widget child, required EdgeInsets padding}) => Padding(padding: padding, child: child);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cardColor = theme.cardTheme.color;
+    final textColor = theme.textTheme.bodyLarge?.color;
+    final subTextColor = theme.textTheme.bodyMedium?.color;
+    final fillColor = theme.inputDecorationTheme.fillColor;
+    final hintColor = theme.inputDecorationTheme.hintStyle?.color;
+
     if (_isLoading && allStudents.isEmpty) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0D1117),
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    // Get unique departments for the dropdown
-    final List<String> courses = ["All", ...allStudents.map((s) => s.department).toSet()];
+    final List<String> courses = [
+      "All",
+      ...allStudents.map((s) => s.department).toSet()
+    ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
-
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("Manage Students"),
         centerTitle: true,
@@ -141,26 +144,24 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
           ),
         ],
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-
             // ---------- SEARCH BAR ----------
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF1F2933),
+                color: fillColor,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: TextField(
                 controller: searchController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  icon: Icon(Icons.search, color: Colors.white54),
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
+                  icon: Icon(Icons.search, color: hintColor),
                   hintText: "Search by name or ID",
-                  hintStyle: TextStyle(color: Colors.white54),
+                  hintStyle: TextStyle(color: hintColor),
                   border: InputBorder.none,
                 ),
                 onChanged: (val) {
@@ -177,52 +178,69 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  // 1. SORT
                   PopupMenuButton<String>(
-                    color: const Color(0xFF1F2933),
+                    color: cardColor,
                     onSelected: (val) {
                       selectedSort = val;
                       _applyFilters();
                     },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem<String>(value: "None", child: Text("Default Sort", style: TextStyle(color: Colors.white))),
-                      PopupMenuItem<String>(value: "Low to High Hours", child: Text("Low to High Hours", style: TextStyle(color: Colors.white))),
-                      PopupMenuItem<String>(value: "High to Low Hours", child: Text("High to Low Hours", style: TextStyle(color: Colors.white))),
+                    itemBuilder: (_) => [
+                      PopupMenuItem<String>(
+                          value: "None",
+                          child: Text("Default Sort",
+                              style: TextStyle(color: textColor))),
+                      PopupMenuItem<String>(
+                          value: "Low to High Hours",
+                          child: Text("Low to High Hours",
+                              style: TextStyle(color: textColor))),
+                      PopupMenuItem<String>(
+                          value: "High to Low Hours",
+                          child: Text("High to Low Hours",
+                              style: TextStyle(color: textColor))),
                     ],
-                    child: filterChip("Sort", selectedSort != "None"),
+                    child: _filterChip(
+                        "Sort", selectedSort != "None", cardColor, textColor),
                   ),
-
                   const SizedBox(width: 8),
-
-                  // 2. COURSE FILTER
                   PopupMenuButton<String>(
-                    color: const Color(0xFF1F2933),
+                    color: cardColor,
                     onSelected: (val) {
                       selectedCourse = val;
                       _applyFilters();
                     },
-                    itemBuilder: (_) => courses.map((course) => PopupMenuItem<String>(
-                      value: course,
-                      child: Text(course, style: const TextStyle(color: Colors.white)),
-                    )).toList(),
-                    child: filterChip("Course: $selectedCourse", selectedCourse != "All"),
+                    itemBuilder: (_) => courses
+                        .map((course) => PopupMenuItem<String>(
+                              value: course,
+                              child: Text(course,
+                                  style: TextStyle(color: textColor)),
+                            ))
+                        .toList(),
+                    child: _filterChip("Course: $selectedCourse",
+                        selectedCourse != "All", cardColor, textColor),
                   ),
-
                   const SizedBox(width: 8),
-
-                  // 3. STATUS FILTER
                   PopupMenuButton<String>(
-                    color: const Color(0xFF1F2933),
+                    color: cardColor,
                     onSelected: (val) {
                       selectedStatus = val;
                       _applyFilters();
                     },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem<String>(value: "All", child: Text("All Status", style: TextStyle(color: Colors.white))),
-                      PopupMenuItem<String>(value: "Completed", child: Text("Completed", style: TextStyle(color: Colors.white))),
-                      PopupMenuItem<String>(value: "Ongoing", child: Text("Ongoing", style: TextStyle(color: Colors.white))),
+                    itemBuilder: (_) => [
+                      PopupMenuItem<String>(
+                          value: "All",
+                          child: Text("All Status",
+                              style: TextStyle(color: textColor))),
+                      PopupMenuItem<String>(
+                          value: "Completed",
+                          child: Text("Completed",
+                              style: TextStyle(color: textColor))),
+                      PopupMenuItem<String>(
+                          value: "Ongoing",
+                          child: Text("Ongoing",
+                              style: TextStyle(color: textColor))),
                     ],
-                    child: filterChip("Status: $selectedStatus", selectedStatus != "All"),
+                    child: _filterChip("Status: $selectedStatus",
+                        selectedStatus != "All", cardColor, textColor),
                   ),
                 ],
               ),
@@ -232,22 +250,22 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
 
             // ---------- STUDENT LIST ----------
             Expanded(
-              child: _isLoading 
+              child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : filteredStudents.isEmpty
-                  ? const Center(
-                child: Text(
-                  "No students found",
-                  style: TextStyle(color: Colors.white54),
-                ),
-              )
-                  : ListView.builder(
-                itemCount: filteredStudents.length,
-                itemBuilder: (context, index) {
-                  final student = filteredStudents[index];
-                  return studentCard(context, student);
-                },
-              ),
+                      ? Center(
+                          child: Text(
+                            "No students found",
+                            style: TextStyle(color: subTextColor),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: filteredStudents.length,
+                          itemBuilder: (context, index) {
+                            final student = filteredStudents[index];
+                            return _studentCard(context, student);
+                          },
+                        ),
             ),
           ],
         ),
@@ -255,12 +273,14 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
     );
   }
 
-  // ---------- UI HELPER: FILTER CHIP ----------
-  Widget filterChip(String text, bool isActive) {
+  Widget _filterChip(
+      String text, bool isActive, Color? cardColor, Color? textColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: isActive ? Colors.blueAccent.withOpacity(0.2) : const Color(0xFF1F2933),
+        color: isActive
+            ? Colors.blueAccent.withOpacity(0.2)
+            : cardColor,
         borderRadius: BorderRadius.circular(20),
         border: isActive ? Border.all(color: Colors.blueAccent) : null,
       ),
@@ -268,19 +288,28 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
         children: [
           Text(
             text,
-            style: TextStyle(color: isActive ? Colors.blueAccent : Colors.white70),
+            style: TextStyle(
+                color: isActive ? Colors.blueAccent : textColor),
           ),
           const SizedBox(width: 4),
-          Icon(Icons.arrow_drop_down, color: isActive ? Colors.blueAccent : Colors.white54, size: 18),
+          Icon(Icons.arrow_drop_down,
+              color: isActive ? Colors.blueAccent : textColor?.withOpacity(0.6),
+              size: 18),
         ],
       ),
     );
   }
 
-  // ---------- STUDENT CARD WITH STATUS BAR ----------
-  Widget studentCard(BuildContext context, Student student) {
+  Widget _studentCard(BuildContext context, Student student) {
+    final theme = Theme.of(context);
+    final cardColor = theme.cardTheme.color;
+    final textColor = theme.textTheme.bodyLarge?.color;
+    final subTextColor = theme.textTheme.bodyMedium?.color;
+    final borderColor = theme.dividerColor;
+
     bool isCompleted = student.totalHours >= 120;
-    Color statusColor = isCompleted ? Colors.greenAccent : Colors.orangeAccent;
+    Color statusColor =
+        isCompleted ? Colors.greenAccent : Colors.orangeAccent;
     String statusText = isCompleted ? "Completed" : "Ongoing";
     double progress = (student.totalHours / 120).clamp(0.0, 1.0);
 
@@ -292,17 +321,15 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
             builder: (context) => StudentDetailsScreen(student: student),
           ),
         );
-        if (result == true) {
-          _loadStudents();
-        }
+        if (result == true) _loadStudents();
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF1F2933),
+          color: cardColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: borderColor),
         ),
         child: Column(
           children: [
@@ -320,35 +347,38 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                     children: [
                       Text(
                         student.fullName,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: textColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
                       Text(
                         "ID: ${student.identifier} • ${student.department}",
-                        style: const TextStyle(color: Colors.white54, fontSize: 13),
+                        style: TextStyle(color: subTextColor, fontSize: 13),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                  icon: const Icon(Icons.delete_outline,
+                      color: Colors.redAccent, size: 20),
                   onPressed: () => _deleteStudent(student),
                 ),
-                const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+                Icon(Icons.arrow_forward_ios,
+                    color: subTextColor, size: 16),
               ],
             ),
 
             const SizedBox(height: 12),
-            const Divider(color: Colors.white10, height: 1),
+            Divider(color: borderColor, height: 1),
             const SizedBox(height: 12),
 
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -362,17 +392,15 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                     ),
                   ),
                 ),
-
                 const Spacer(),
-
                 RichText(
                   text: TextSpan(
-                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    style: TextStyle(color: subTextColor, fontSize: 13),
                     children: [
                       TextSpan(
                         text: "${student.totalHours}",
                         style: TextStyle(
-                          color: isCompleted ? Colors.green : Colors.white,
+                          color: isCompleted ? Colors.green : textColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -389,7 +417,7 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: progress,
-                backgroundColor: Colors.white10,
+                backgroundColor: borderColor,
                 valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                 minHeight: 6,
               ),

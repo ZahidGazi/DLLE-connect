@@ -61,8 +61,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
     try {
       String? imageUrl;
       if (_selectedImage != null) {
-        imageUrl =
-            await DataService.instance.uploadAnnouncementImage(_selectedImage!);
+        imageUrl = await DataService.instance
+            .uploadAnnouncementImage(_selectedImage!);
       }
 
       await DataService.instance.addAnnouncement(
@@ -71,7 +71,6 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
         imageUrl: imageUrl,
       );
 
-      // Refresh list (Realtime handles notification push)
       await DataService.instance.fetchAnnouncements();
       titleController.clear();
       messageController.clear();
@@ -110,14 +109,20 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
+            final theme = Theme.of(context);
+            final cardColor = theme.cardTheme.color;
+            final fillColor = theme.inputDecorationTheme.fillColor;
+            final textColor = theme.textTheme.bodyLarge?.color;
+            final borderColor = theme.dividerColor;
+
             return AlertDialog(
-              backgroundColor: const Color(0xFF1F2933),
+              backgroundColor: cardColor,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
-              title: const Text(
+              title: Text(
                 "Edit Announcement",
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: textColor, fontWeight: FontWeight.bold),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -126,7 +131,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                     // Title field
                     TextField(
                       controller: editTitleController,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: textColor),
                       decoration: _inputDecoration("Title"),
                     ),
                     const SizedBox(height: 12),
@@ -134,7 +139,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                     TextField(
                       controller: editMessageController,
                       maxLines: 4,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: textColor),
                       decoration: _inputDecoration("Message"),
                     ),
                     const SizedBox(height: 12),
@@ -149,7 +154,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                         if (pickedFile != null) {
                           setDialogState(() {
                             editImage = File(pickedFile.path);
-                            editImageUrl = null; // will be replaced on save
+                            editImageUrl = null;
                           });
                         }
                       },
@@ -157,9 +162,9 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                         height: 120,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0D1117),
+                          color: fillColor,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white12),
+                          border: Border.all(color: borderColor),
                         ),
                         child: editImage != null
                             ? ClipRRect(
@@ -174,14 +179,20 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                                         fit: BoxFit.cover),
                                   )
                                 : Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
                                       Icon(Icons.add_a_photo,
-                                          color: Colors.white38, size: 32),
-                                      SizedBox(height: 6),
+                                          color: theme.inputDecorationTheme
+                                              .hintStyle?.color,
+                                          size: 32),
+                                      const SizedBox(height: 6),
                                       Text("Tap to add image",
                                           style: TextStyle(
-                                              color: Colors.white38,
+                                              color: theme
+                                                  .inputDecorationTheme
+                                                  .hintStyle
+                                                  ?.color,
                                               fontSize: 12)),
                                     ],
                                   ),
@@ -205,8 +216,9 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
               actions: [
                 TextButton(
                   onPressed: isSaving ? null : () => Navigator.pop(ctx),
-                  child: const Text("Cancel",
-                      style: TextStyle(color: Colors.white54)),
+                  child: Text("Cancel",
+                      style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -228,7 +240,6 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                           setDialogState(() => isSaving = true);
                           try {
                             String? finalImageUrl = editImageUrl;
-                            // Upload new image if selected
                             if (editImage != null) {
                               finalImageUrl = await DataService.instance
                                   .uploadAnnouncementImage(editImage!);
@@ -280,26 +291,29 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
 
   // ---------------- DELETE CONFIRMATION ----------------
   Future<void> _confirmDelete(Announcement item) async {
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1F2933),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        backgroundColor: theme.cardTheme.color,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
+        title: Text(
           "Delete Announcement",
-          style:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: theme.textTheme.bodyLarge?.color,
+              fontWeight: FontWeight.bold),
         ),
         content: Text(
           'Are you sure you want to delete "${item.title}"? This cannot be undone.',
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(color: theme.textTheme.bodyMedium?.color),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel",
-                style: TextStyle(color: Colors.white54)),
+            child: Text("Cancel",
+                style:
+                    TextStyle(color: theme.textTheme.bodyMedium?.color)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -308,8 +322,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                   borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child:
-                const Text("Delete", style: TextStyle(color: Colors.white)),
+            child: const Text("Delete",
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -331,7 +345,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text("Error: $e"), backgroundColor: Colors.red),
+                content: Text("Error: $e"),
+                backgroundColor: Colors.red),
           );
         }
       }
@@ -341,6 +356,13 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
   @override
   Widget build(BuildContext context) {
     final announcements = DataService.instance.announcements;
+    final theme = Theme.of(context);
+    final cardColor = theme.cardTheme.color;
+    final fillColor = theme.inputDecorationTheme.fillColor;
+    final textColor = theme.textTheme.bodyLarge?.color;
+    final subTextColor = theme.textTheme.bodyMedium?.color;
+    final hintColor = theme.inputDecorationTheme.hintStyle?.color;
+    final borderColor = theme.dividerColor;
 
     return Scaffold(
       appBar: AppBar(
@@ -359,16 +381,16 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1F2933),
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "New Announcement",
                       style: TextStyle(
-                        color: Colors.white,
+                        color: textColor,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -377,7 +399,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
 
                     TextField(
                       controller: titleController,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: textColor),
                       decoration: inputDecoration("Title"),
                     ),
                     const SizedBox(height: 12),
@@ -385,7 +407,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                     TextField(
                       controller: messageController,
                       maxLines: 4,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: textColor),
                       decoration: inputDecoration("Message"),
                     ),
                     const SizedBox(height: 12),
@@ -397,16 +419,17 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                         height: 140,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0D1117),
+                          color: fillColor,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white12),
+                          border: Border.all(color: borderColor),
                         ),
                         child: _selectedImage != null
                             ? Stack(
                                 fit: StackFit.expand,
                                 children: [
                                   ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius:
+                                        BorderRadius.circular(10),
                                     child: Image.file(_selectedImage!,
                                         fit: BoxFit.cover),
                                   ),
@@ -422,22 +445,24 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                                         ),
                                         padding: const EdgeInsets.all(4),
                                         child: const Icon(Icons.close,
-                                            color: Colors.white, size: 16),
+                                            color: Colors.white,
+                                            size: 16),
                                       ),
                                     ),
                                   ),
                                 ],
                               )
                             : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center,
+                                children: [
                                   Icon(Icons.add_a_photo,
-                                      size: 36, color: Colors.white38),
-                                  SizedBox(height: 8),
+                                      size: 36, color: hintColor),
+                                  const SizedBox(height: 8),
                                   Text(
                                     "Tap to add image (optional)",
                                     style: TextStyle(
-                                        color: Colors.white38, fontSize: 13),
+                                        color: hintColor, fontSize: 13),
                                   ),
                                 ],
                               ),
@@ -482,18 +507,17 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     "Past Announcements",
                     style: TextStyle(
-                      color: Colors.white,
+                      color: textColor,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
                     "${announcements.length} total",
-                    style:
-                        const TextStyle(color: Colors.white54, fontSize: 13),
+                    style: TextStyle(color: subTextColor, fontSize: 13),
                   ),
                 ],
               ),
@@ -507,14 +531,13 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                   ),
                 )
               else if (announcements.isEmpty)
-                const Center(
+                Center(
                   child: Padding(
-                    padding: EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(32),
                     child: Text(
                       "No announcements yet.\nPost one above!",
                       textAlign: TextAlign.center,
-                      style:
-                          TextStyle(color: Colors.white54, fontSize: 15),
+                      style: TextStyle(color: subTextColor, fontSize: 15),
                     ),
                   ),
                 )
@@ -528,9 +551,9 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1F2933),
+                        color: cardColor,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white12),
+                        border: Border.all(color: borderColor),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,8 +586,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                                     Expanded(
                                       child: Text(
                                         item.title,
-                                        style: const TextStyle(
-                                          color: Colors.white,
+                                        style: TextStyle(
+                                          color: textColor,
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -596,16 +619,17 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                                   ],
                                 ),
                                 const SizedBox(height: 6),
-                                // Date from createdAt
+                                // Date
                                 Row(
                                   children: [
-                                    const Icon(Icons.calendar_today,
-                                        color: Colors.white38, size: 12),
+                                    Icon(Icons.calendar_today,
+                                        color: subTextColor?.withOpacity(0.6),
+                                        size: 12),
                                     const SizedBox(width: 4),
                                     Text(
                                       item.formattedDate,
-                                      style: const TextStyle(
-                                          color: Colors.white54,
+                                      style: TextStyle(
+                                          color: subTextColor,
                                           fontSize: 12),
                                     ),
                                   ],
@@ -614,8 +638,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
                                 // Message
                                 Text(
                                   item.message,
-                                  style: const TextStyle(
-                                      color: Colors.white70,
+                                  style: TextStyle(
+                                      color: textColor,
                                       fontSize: 14,
                                       height: 1.5),
                                 ),
@@ -638,11 +662,12 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
 
   // ---------------- INPUT DECORATIONS ----------------
   InputDecoration inputDecoration(String hint) {
+    final theme = Theme.of(context);
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white54),
+      hintStyle: theme.inputDecorationTheme.hintStyle,
       filled: true,
-      fillColor: const Color(0xFF0D1117),
+      fillColor: theme.inputDecorationTheme.fillColor,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide.none,
@@ -651,11 +676,12 @@ class _AnnouncementScreenState extends State<AnnouncementScreens> {
   }
 
   InputDecoration _inputDecoration(String hint) {
+    final theme = Theme.of(context);
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white54),
+      hintStyle: theme.inputDecorationTheme.hintStyle,
       filled: true,
-      fillColor: const Color(0xFF0D1117),
+      fillColor: theme.inputDecorationTheme.fillColor,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide.none,

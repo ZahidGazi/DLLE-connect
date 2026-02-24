@@ -318,12 +318,11 @@ class _ManageCoursesScreenState extends State<ManageCoursesScreen> {
   @override
   Widget build(BuildContext context) {
     final courses = DataService.instance.courses;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = Theme.of(context).cardTheme.color;
-    final textColor =
-        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
-    final subTextColor =
-        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final theme = Theme.of(context);
+    final cardColor = theme.cardTheme.color;
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.white;
+    final subTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+    final borderColor = theme.dividerColor;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -392,11 +391,7 @@ class _ManageCoursesScreenState extends State<ManageCoursesScreen> {
                           decoration: BoxDecoration(
                             color: cardColor,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: isDark
-                                  ? Colors.white12
-                                  : Colors.black12,
-                            ),
+                            border: Border.all(color: borderColor),
                           ),
                           child: ListTile(
                             contentPadding: const EdgeInsets.symmetric(
@@ -508,20 +503,16 @@ class _ManageCoursesScreenState extends State<ManageCoursesScreen> {
     String hint, {
     TextInputType keyboardType = TextInputType.text,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
-      style: TextStyle(
-          color: isDark ? Colors.white : Colors.black87),
+      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(
-            color: isDark ? Colors.white54 : Colors.black45),
+        hintStyle: theme.inputDecorationTheme.hintStyle,
         filled: true,
-        fillColor: isDark
-            ? const Color(0xFF0D1117)
-            : const Color(0xFFF1F1F1),
+        fillColor: theme.inputDecorationTheme.fillColor,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,

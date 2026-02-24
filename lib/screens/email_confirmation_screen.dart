@@ -8,7 +8,8 @@ class EmailConfirmationScreen extends StatefulWidget {
   const EmailConfirmationScreen({super.key, required this.email});
 
   @override
-  State<EmailConfirmationScreen> createState() => _EmailConfirmationScreenState();
+  State<EmailConfirmationScreen> createState() =>
+      _EmailConfirmationScreenState();
 }
 
 class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
@@ -24,9 +25,7 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
     try {
       await SupabaseService.resendConfirmationEmail(widget.email);
       if (mounted) {
-        setState(() {
-          resendSuccess = true;
-        });
+        setState(() => resendSuccess = true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("Confirmation email resent! Check your inbox."),
@@ -54,8 +53,13 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColor = theme.textTheme.bodyLarge?.color;
+    final subTextColor = theme.textTheme.bodyMedium?.color;
+    final hintColor = theme.inputDecorationTheme.hintStyle?.color;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("Confirm Your Email"),
         centerTitle: true,
@@ -73,22 +77,15 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
                 color: Colors.blueAccent,
               ),
               const SizedBox(height: 30),
-              const Text(
+              Text(
                 "Check Your Email",
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: theme.textTheme.titleLarge?.copyWith(fontSize: 24),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               Text(
                 "We've sent a confirmation link to:",
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: subTextColor, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -102,12 +99,9 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 "Please click the link in the email to verify your account. Once verified, you can log in.",
-                style: TextStyle(
-                  color: Colors.black54,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: subTextColor, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 40),
@@ -177,12 +171,9 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 "Didn't receive the email? Check your spam folder or try resending.",
-                style: TextStyle(
-                  color: Colors.black45,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: hintColor, fontSize: 12),
                 textAlign: TextAlign.center,
               ),
             ],
