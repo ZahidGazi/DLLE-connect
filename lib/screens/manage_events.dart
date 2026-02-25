@@ -796,7 +796,10 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
     return TextField(
       controller: controller,
       maxLines: maxLines,
-      keyboardType: keyboardType,
+      keyboardType: maxLines > 1 ? TextInputType.multiline : keyboardType,
+      textInputAction: maxLines > 1
+          ? TextInputAction.newline
+          : TextInputAction.done,
       style: TextStyle(color: textColor),
       decoration: InputDecoration(
         hintText: hint,
