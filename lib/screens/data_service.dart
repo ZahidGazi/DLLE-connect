@@ -235,12 +235,12 @@ class DataService {
         // Filter events: show "All" events + events matching student's course/year
         _events = _events.where((event) {
           // No targeting → visible to everyone
-          if (event.targetCourse == null || event.targetCourse!.isEmpty) {
+          if (event.targetCourses == null || event.targetCourses!.isEmpty) {
             return true;
           }
-          // Course matches
-          if (event.targetCourse == studentCourse) {
-            // No year targeting → visible to all years in that course
+          // Student's course is in the targeted courses list
+          if (event.targetCourses!.contains(studentCourse)) {
+            // No year targeting → visible to all years in those courses
             if (event.targetYear == null) return true;
             // Year matches
             return event.targetYear == studentYearOfStudy;

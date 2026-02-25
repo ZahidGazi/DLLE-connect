@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class EventItem {
   String? id;
   String title;
@@ -19,10 +21,11 @@ class EventItem {
   final double latitude;
   final double longitude;
 
-  /// Targeting: null means visible to all courses
-  String? targetCourse;
+  /// Targeting: null or empty list means visible to all courses.
+  /// Supports multiple courses (e.g. ["BCOM", "BSc.IT"]).
+  List<String>? targetCourses;
 
-  /// Targeting: null means visible to all years within the target course
+  /// Targeting: null means visible to all years within the target courses.
   int? targetYear;
 
   EventItem({
@@ -43,9 +46,30 @@ class EventItem {
     this.longitude = 0.0,
     this.joinedcount = 0,
     this.completedcount = 0,
-    this.targetCourse,
+    this.targetCourses,
     this.targetYear,
   });
+
+  /// Parses the `target_course` DB column into a `List<String>`.
+  /// Handles three cases:
+  ///   1. null / empty → null (visible to everyone)
+  ///   2. JSON array string → ["BCOM","BSc.IT"]  (new multi-select format)
+  ///   3. Plain string → ["BCOM"]  (backward compat with old single-course data)
+  static List<String>? _parseTargetCourses(dynamic value) {
+    if (value == null) return null;
+    final str = value.toString().trim();
+    if (str.isEmpty) return null;
+    // Try JSON array first
+    try {
+      final decoded = jsonDecode(str);
+      if (decoded is List) {
+        final list = decoded.whereType<String>().toList();
+        return list.isEmpty ? null : list;
+      }
+    } catch (_) {}
+    // Fallback: treat as a single plain-string course (old data)
+    return [str];
+  }
 
   factory EventItem.fromMap(Map<String, dynamic> map) {
     return EventItem(
@@ -61,7 +85,7 @@ class EventItem {
       imagepath: map['image_path'],
       latitude: (map['latitude'] ?? 0.0).toDouble(),
       longitude: (map['longitude'] ?? 0.0).toDouble(),
-      targetCourse: map['target_course'],
+      targetCourses: _parseTargetCourses(map['target_course']),
       targetYear: map['target_year'],
     );
   }
@@ -79,7 +103,10 @@ class EventItem {
       'image_path': imagepath,
       'latitude': latitude,
       'longitude': longitude,
-      'target_course': targetCourse,
+      // Store as JSON array string, or null when targeting everyone
+      'target_course': (targetCourses == null || targetCourses!.isEmpty)
+          ? null
+          : jsonEncode(targetCourses),
       'target_year': targetYear,
     };
   }

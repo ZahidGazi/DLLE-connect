@@ -32,8 +32,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
   String? _existingImageUrl; // URL from Supabase Storage (when editing)
 
   // Targeting
-  String? _selectedTargetCourse; // null = "All Courses"
-  int? _selectedTargetYear;      // null = "All Years"
+  List<String> _selectedTargetCourses = []; // empty = "All Courses"
+  int? _selectedTargetYear;                 // null = "All Years"
   List<Map<String, dynamic>> _courses = [];
 
   EventItem? _editingEvent;
@@ -62,12 +62,17 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
   }
 
   int get _currentMaxYear {
-    if (_selectedTargetCourse == null) return 4;
-    final course = _courses.firstWhere(
-      (c) => c['name'] == _selectedTargetCourse,
-      orElse: () => {'max_year': 4},
-    );
-    return (course['max_year'] as int?) ?? 4;
+    if (_selectedTargetCourses.isEmpty) return 4;
+    int minYear = 4;
+    for (final courseName in _selectedTargetCourses) {
+      final course = _courses.firstWhere(
+        (c) => c['name'] == courseName,
+        orElse: () => {'max_year': 4},
+      );
+      final maxYear = (course['max_year'] as int?) ?? 4;
+      if (maxYear < minYear) minYear = maxYear;
+    }
+    return minYear;
   }
 
   Future<void> _pickImage() async {
@@ -140,7 +145,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       endDate = event.eventdate;
       startTime = _parseTime(event.starttime);
       endTime = _parseTime(event.endtime);
-      _selectedTargetCourse = event.targetCourse;
+      _selectedTargetCourses = List<String>.from(event.targetCourses ?? []);
       _selectedTargetYear = event.targetYear;
 
       // imagepath may be a remote HTTPS URL, a blob URL, or a local file path
@@ -177,7 +182,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       endTime = null;
       _selectedImage = null;
       _existingImageUrl = null;
-      _selectedTargetCourse = null;
+      _selectedTargetCourses = [];
       _selectedTargetYear = null;
     });
   }
@@ -357,49 +362,43 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
             ),
             const SizedBox(height: 8),
 
-            // Course targeting dropdown
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: inputFillColor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String?>(
-                  value: _selectedTargetCourse,
-                  isExpanded: true,
-                  dropdownColor: cardColor,
-                  style: TextStyle(color: textColor, fontSize: 14),
-                  hint: Text("All Courses (visible to everyone)",
-                      style: TextStyle(
-                          color: subTextColor.withOpacity(0.6),
-                          fontSize: 14)),
-                  items: [
-                    DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text("All Courses",
-                          style: TextStyle(color: textColor)),
+            // Course targeting — tap to open multi-select dialog
+            GestureDetector(
+              onTap: () => _showCourseSelectionDialog(
+                  cardColor, textColor, subTextColor),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 14),
+                decoration: BoxDecoration(
+                  color: inputFillColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _selectedTargetCourses.isEmpty
+                            ? "All Courses (visible to everyone)"
+                            : "${_selectedTargetCourses.length} course(s) selected",
+                        style: TextStyle(
+                          color: _selectedTargetCourses.isEmpty
+                              ? subTextColor.withOpacity(0.6)
+                              : textColor,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
-                    ..._courses.map((course) => DropdownMenuItem<String?>(
-                          value: course['name'] as String,
-                          child: Text(course['name'] as String,
-                              style: TextStyle(color: textColor)),
-                        )),
+                    Icon(Icons.keyboard_arrow_down,
+                        color: subTextColor, size: 20),
                   ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedTargetCourse = value;
-                      _selectedTargetYear = null;
-                    });
-                  },
                 ),
               ),
             ),
 
             const SizedBox(height: 10),
 
-            // Year targeting dropdown (only shown when a course is selected)
-            if (_selectedTargetCourse != null)
+            // Year targeting dropdown (only shown when at least one course is selected)
+            if (_selectedTargetCourses.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
@@ -412,10 +411,12 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                     isExpanded: true,
                     dropdownColor: cardColor,
                     style: TextStyle(color: textColor, fontSize: 14),
-                    hint: Text("All Years in $_selectedTargetCourse",
-                        style: TextStyle(
-                            color: subTextColor.withOpacity(0.6),
-                            fontSize: 14)),
+                    hint: Text(
+                      "All Years",
+                      style: TextStyle(
+                          color: subTextColor.withOpacity(0.6),
+                          fontSize: 14),
+                    ),
                     items: [
                       DropdownMenuItem<int?>(
                         value: null,
@@ -435,29 +436,34 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                 ),
               ),
 
-            // Targeting summary chip
-            if (_selectedTargetCourse != null)
+            // Targeting summary chips — one per selected course
+            if (_selectedTargetCourses.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Wrap(
-                  children: [
-                    Chip(
-                      backgroundColor: Colors.blueAccent.withOpacity(0.15),
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _selectedTargetCourses.map((course) {
+                    return Chip(
+                      backgroundColor:
+                          Colors.blueAccent.withOpacity(0.15),
                       label: Text(
                         _selectedTargetYear == null
-                            ? "📌 $_selectedTargetCourse — All Years"
-                            : "📌 $_selectedTargetCourse — Year $_selectedTargetYear",
+                            ? "📌 $course — All Years"
+                            : "📌 $course — Year $_selectedTargetYear",
                         style: const TextStyle(
                             color: Colors.blueAccent, fontSize: 12),
                       ),
                       deleteIcon: const Icon(Icons.close,
                           size: 14, color: Colors.blueAccent),
                       onDeleted: () => setState(() {
-                        _selectedTargetCourse = null;
-                        _selectedTargetYear = null;
+                        _selectedTargetCourses.remove(course);
+                        if (_selectedTargetCourses.isEmpty) {
+                          _selectedTargetYear = null;
+                        }
                       }),
-                    ),
-                  ],
+                    );
+                  }).toList(),
                 ),
               ),
 
@@ -523,7 +529,9 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       endtime: endTimeStr,
                       latitude: _selectedLat,
                       longitude: _selectedLng,
-                      targetCourse: _selectedTargetCourse,
+                      targetCourses: _selectedTargetCourses.isEmpty
+                          ? null
+                          : _selectedTargetCourses,
                       targetYear: _selectedTargetYear,
                     );
                     await DataService.instance.addEvent(event);
@@ -543,7 +551,9 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       endtime: endTimeStr,
                       latitude: _selectedLat,
                       longitude: _selectedLng,
-                      targetCourse: _selectedTargetCourse,
+                      targetCourses: _selectedTargetCourses.isEmpty
+                          ? null
+                          : _selectedTargetCourses,
                       targetYear: _selectedTargetYear,
                     );
                     await DataService.instance.updateEvent(updatedEvent);
@@ -663,7 +673,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                                             color: subTextColor,
                                             fontSize: 12)),
                                     // Targeting badge
-                                    if (event.targetCourse != null)
+                                    if (event.targetCourses != null &&
+                                        event.targetCourses!.isNotEmpty)
                                       Padding(
                                         padding:
                                             const EdgeInsets.only(top: 4),
@@ -680,8 +691,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                                           ),
                                           child: Text(
                                             event.targetYear == null
-                                                ? "📌 ${event.targetCourse}"
-                                                : "📌 ${event.targetCourse} · Yr ${event.targetYear}",
+                                                ? "📌 ${event.targetCourses!.join(', ')}"
+                                                : "📌 ${event.targetCourses!.join(', ')} · Yr ${event.targetYear}",
                                             style: const TextStyle(
                                                 color: Colors.blueAccent,
                                                 fontSize: 11),
@@ -716,6 +727,104 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                   ),
           ],
         ),
+      ),
+    );
+  }
+
+  // -------- MULTI-SELECT COURSE DIALOG --------
+
+  Future<void> _showCourseSelectionDialog(
+    Color cardColor,
+    Color textColor,
+    Color subTextColor,
+  ) async {
+    // Work on a temporary copy so Cancel discards changes
+    final tempSelected = List<String>.from(_selectedTargetCourses);
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: cardColor,
+            title: Text(
+              "Select Target Courses",
+              style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // "All Courses" option — selecting it clears all others
+                    CheckboxListTile(
+                      title: Text(
+                        "All Courses (visible to everyone)",
+                        style: TextStyle(color: textColor, fontSize: 14),
+                      ),
+                      value: tempSelected.isEmpty,
+                      activeColor: Colors.blueAccent,
+                      checkColor: Colors.white,
+                      onChanged: (_) {
+                        setDialogState(() => tempSelected.clear());
+                      },
+                    ),
+                    Divider(color: subTextColor.withOpacity(0.2)),
+                    // Individual course checkboxes
+                    ..._courses.map((course) {
+                      final name = course['name'] as String;
+                      return CheckboxListTile(
+                        title: Text(
+                          name,
+                          style: TextStyle(color: textColor, fontSize: 14),
+                        ),
+                        value: tempSelected.contains(name),
+                        activeColor: Colors.blueAccent,
+                        checkColor: Colors.white,
+                        onChanged: (checked) {
+                          setDialogState(() {
+                            if (checked == true) {
+                              tempSelected.add(name);
+                            } else {
+                              tempSelected.remove(name);
+                            }
+                          });
+                        },
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("Cancel",
+                    style: TextStyle(color: subTextColor)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _selectedTargetCourses = tempSelected;
+                    // Reset year if no courses selected
+                    if (_selectedTargetCourses.isEmpty) {
+                      _selectedTargetYear = null;
+                    }
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text("Apply",
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
