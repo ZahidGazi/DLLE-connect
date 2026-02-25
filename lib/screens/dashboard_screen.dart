@@ -104,19 +104,27 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
     if (mounted) setState(() => _isLoading = false);
   }
 
+  static const _monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
   Map<String, int> getMonthlyJoinedData() {
     final joinedEvents = DataService.instance.joinedEvents;
     Map<String, int> monthlyCounts = {};
     for (var event in joinedEvents) {
-      try {
-        List<String> parts = event.date.split(' ');
-        if (parts.length >= 2) {
-          String month = parts[1].substring(0, 3);
-          monthlyCounts[month] = (monthlyCounts[month] ?? 0) + 1;
-        }
-      } catch (e) {
-        debugPrint("Error parsing date: ${event.date}");
-      }
+      final month = _monthNames[event.eventdate.month - 1];
+      monthlyCounts[month] = (monthlyCounts[month] ?? 0) + 1;
+    }
+    return monthlyCounts;
+  }
+
+  Map<String, int> getMonthlyCompletedData() {
+    final completedEvents = DataService.instance.completedEvents;
+    Map<String, int> monthlyCounts = {};
+    for (var event in completedEvents) {
+      final month = _monthNames[event.eventdate.month - 1];
+      monthlyCounts[month] = (monthlyCounts[month] ?? 0) + 1;
     }
     return monthlyCounts;
   }
@@ -129,7 +137,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
       MaterialPageRoute(
         builder: (_) => EventListScreen(title: title, events: events),
       ),
-    );
+    ).then((_) => _loadData());
   }
 
   @override
@@ -150,8 +158,9 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
     final joinedEvents = data.joinedEvents;
     final completedEvents = data.completedEvents;
     final totalHours = completedEvents.fold<int>(0, (sum, e) => sum + e.hours);
-    final monthlyData = getMonthlyJoinedData();
-    final List<String> monthOrder = [
+    final monthlyJoinedData = getMonthlyJoinedData();
+    final monthlyCompletedData = getMonthlyCompletedData();
+    const List<String> monthOrder = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
@@ -307,61 +316,133 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: SizedBox(
-                  height: ResponsiveHelper.imageHeight(context, 180),
-                  child: monthlyData.isEmpty
-                      ? const Center(child: Text("No events joined yet"))
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            final barWidth = ResponsiveHelper.isDesktop(context)
-                                ? 28.0
-                                : ResponsiveHelper.isTablet(context)
-                                    ? 24.0
-                                    : 20.0;
-                            return Row(
+                  height: ResponsiveHelper.imageHeight(context, 210),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final barWidth = ResponsiveHelper.isDesktop(context)
+                          ? 10.0
+                          : ResponsiveHelper.isTablet(context)
+                              ? 9.0
+                              : 7.0;
+
+                      final allValues = [
+                        ...monthlyJoinedData.values,
+                        ...monthlyCompletedData.values,
+                      ];
+                      final int maxCount = allValues.isEmpty
+                          ? 1
+                          : allValues.reduce((a, b) => a > b ? a : b);
+
+                      return Column(
+                        children: [
+                          // ---- Legend ----
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _legendDot(Colors.blueAccent, "Joined"),
+                              const SizedBox(width: 16),
+                              _legendDot(Colors.green, "Completed"),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          // ---- Bars ----
+                          Expanded(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: monthOrder.map((month) {
-                                if (!monthlyData.containsKey(month)) {
-                                  return const SizedBox.shrink();
-                                }
-                                int count = monthlyData[month] ?? 0;
-                                int maxCount = monthlyData.values.reduce((a, b) => a > b ? a : b);
-                                double barHeight = (count / (maxCount == 0 ? 1 : maxCount)) * 120;
+                                final int jCount = monthlyJoinedData[month] ?? 0;
+                                final int cCount = monthlyCompletedData[month] ?? 0;
+                                final double jHeight = jCount > 0
+                                    ? (jCount / maxCount) * 100
+                                    : 6.0;
+                                final double cHeight = cCount > 0
+                                    ? (cCount / maxCount) * 100
+                                    : 6.0;
 
                                 return Column(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
-                                    Text(
-                                      count.toString(),
-                                      style: TextStyle(
-                                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                                        fontSize: ResponsiveHelper.fontSize(context, 10),
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    // Two bars side by side
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        // Joined bar
+                                        Column(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: [
+                                            if (jCount > 0)
+                                              Text(
+                                                jCount.toString(),
+                                                style: TextStyle(
+                                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                                  fontSize: ResponsiveHelper.fontSize(context, 9),
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            const SizedBox(height: 2),
+                                            Container(
+                                              width: barWidth,
+                                              height: jHeight,
+                                              decoration: BoxDecoration(
+                                                color: jCount > 0
+                                                    ? Colors.blueAccent
+                                                    : Colors.blueAccent.withOpacity(0.15),
+                                                borderRadius: BorderRadius.circular(3),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 2),
+                                        // Completed bar
+                                        Column(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: [
+                                            if (cCount > 0)
+                                              Text(
+                                                cCount.toString(),
+                                                style: TextStyle(
+                                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                                  fontSize: ResponsiveHelper.fontSize(context, 9),
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            const SizedBox(height: 2),
+                                            Container(
+                                              width: barWidth,
+                                              height: cHeight,
+                                              decoration: BoxDecoration(
+                                                color: cCount > 0
+                                                    ? Colors.green
+                                                    : Colors.green.withOpacity(0.15),
+                                                borderRadius: BorderRadius.circular(3),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      width: barWidth,
-                                      height: barHeight < 10 ? 10 : barHeight,
-                                      decoration: BoxDecoration(
-                                        color: Colors.blueAccent,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 6),
                                     Text(
                                       month,
                                       style: TextStyle(
-                                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
-                                        fontSize: ResponsiveHelper.fontSize(context, 12),
+                                        color: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.color
+                                            ?.withOpacity(0.6),
+                                        fontSize: ResponsiveHelper.fontSize(context, 9),
                                       ),
                                     ),
                                   ],
                                 );
                               }).toList(),
-                            );
-                          },
-                        ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
 
@@ -459,6 +540,26 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
     );
   }
 
+  Widget _legendDot(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: ResponsiveHelper.fontSize(context, 11),
+            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget statCard(String value, String label, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -488,7 +589,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => EventDetailsScreen(event: event)),
-        );
+        ).then((_) => _loadData());
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
@@ -536,7 +637,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => EventDetailsScreen(event: event)),
-        );
+        ).then((_) => _loadData());
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
@@ -602,7 +703,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => EventDetailsScreen(event: event)),
-        );
+        ).then((_) => _loadData());
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
