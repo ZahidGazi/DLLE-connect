@@ -51,15 +51,30 @@ class DataService {
     return password == _adminPassword;
   }
 
-  bool changeAdminPassword(String oldPassword, String newPassword) {
-    if (oldPassword == _adminPassword) {
-      _adminPassword = newPassword;
-      SharedPreferences.getInstance().then((prefs) {
-        prefs.setString('adminPassword', newPassword);
-      });
+  Future<bool> changeAdminPassword(String oldPassword, String newPassword) async {
+    try {
+      // Use the currently authenticated user's email — always correct
+      // regardless of what identifier is stored in studentId.
+      final email = _supabase.auth.currentUser?.email;
+      if (email == null || email.isEmpty) {
+        debugPrint("Admin password change error: no authenticated user email");
+        return false;
+      }
+      // Verify old password against Supabase auth
+      await _supabase.auth.signInWithPassword(
+        email: email,
+        password: oldPassword,
+      );
+      // Old password correct — update to new password
+      await _supabase.auth.updateUser(UserAttributes(password: newPassword));
       return true;
+    } on AuthException catch (e) {
+      debugPrint("Admin password change error: ${e.message}");
+      return false;
+    } catch (e) {
+      debugPrint("Admin password change error: $e");
+      return false;
     }
-    return false;
   }
 
   Future<void> setAdminName(String name) async {

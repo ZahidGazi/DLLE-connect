@@ -13,7 +13,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final TextEditingController newController = TextEditingController();
   final TextEditingController confirmController = TextEditingController();
 
-  void changePassword() {
+  bool _oldObscure = true;
+  bool _newObscure = true;
+  bool _confirmObscure = true;
+
+  Future<void> changePassword() async {
     if (oldController.text.isEmpty ||
         newController.text.isEmpty ||
         confirmController.text.isEmpty) {
@@ -30,7 +34,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
 
-    final success = DataService.instance.changeAdminPassword(
+    final success = await DataService.instance.changeAdminPassword(
       oldController.text,
       newController.text,
     );
@@ -43,7 +47,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Password updated successfully")),
+      const SnackBar(
+        content: Text("Password updated successfully"),
+        backgroundColor: Colors.green,
+      ),
     );
 
     Navigator.pop(context);
@@ -51,33 +58,70 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final fillColor = Theme.of(context).inputDecorationTheme.fillColor ??
+        Theme.of(context).scaffoldBackgroundColor;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Change Password"),
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            passwordField(oldController, "Old Password"),
-            const SizedBox(height: 16,),
-            Padding(padding: const EdgeInsets.symmetric(vertical: 8)),
-            passwordField(newController, "New Password"),
+            Text(
+              "Update your admin password below.",
+              style: TextStyle(color: textColor?.withOpacity(0.6), fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            _passwordField(
+              controller: oldController,
+              hint: "Old Password",
+              obscure: _oldObscure,
+              onToggle: () => setState(() => _oldObscure = !_oldObscure),
+              fillColor: fillColor,
+              textColor: textColor,
+            ),
             const SizedBox(height: 16),
-            passwordField(confirmController, "Confirm Password"),
-            const SizedBox(height: 30),
-
+            _passwordField(
+              controller: newController,
+              hint: "New Password",
+              obscure: _newObscure,
+              onToggle: () => setState(() => _newObscure = !_newObscure),
+              fillColor: fillColor,
+              textColor: textColor,
+            ),
+            const SizedBox(height: 16),
+            _passwordField(
+              controller: confirmController,
+              hint: "Confirm New Password",
+              obscure: _confirmObscure,
+              onToggle: () => setState(() => _confirmObscure = !_confirmObscure),
+              fillColor: fillColor,
+              textColor: textColor,
+            ),
+            const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
-              height: 48,
+              height: 50,
               child: ElevatedButton(
                 onPressed: changePassword,
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purpleAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text(
                   "Update Password",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -87,14 +131,31 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  Widget passwordField(TextEditingController controller, String hint) {
+  Widget _passwordField({
+    required TextEditingController controller,
+    required String hint,
+    required bool obscure,
+    required VoidCallback onToggle,
+    required Color? fillColor,
+    required Color? textColor,
+  }) {
     return TextField(
       controller: controller,
-      obscureText: true,
+      obscureText: obscure,
+      style: TextStyle(color: textColor),
       decoration: InputDecoration(
-        hintText: hint,
+        labelText: hint,
+        labelStyle: TextStyle(color: textColor?.withOpacity(0.6)),
         filled: true,
-        fillColor: const Color(0xFF1F2933),
+        fillColor: fillColor,
+        prefixIcon: const Icon(Icons.lock_outline, color: Colors.purpleAccent),
+        suffixIcon: IconButton(
+          icon: Icon(
+            obscure ? Icons.visibility_off : Icons.visibility,
+            color: Colors.grey,
+          ),
+          onPressed: onToggle,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

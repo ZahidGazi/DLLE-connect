@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'login_screen.dart';
+import 'admin_password.dart';
 import '../utils/responsive_helper.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
@@ -143,6 +144,17 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             title: "Change ID",
             color: Colors.orangeAccent,
             onTap: _showChangeIdDialog,
+          ),
+          _settingsTile(
+            icon: Icons.lock_outline,
+            title: "Change Password",
+            color: Colors.purpleAccent,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+              );
+            },
           ),
           const SizedBox(height: 24),
           _sectionHeader("App Settings", subTextColor),
