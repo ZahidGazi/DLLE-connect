@@ -255,7 +255,12 @@ class DataService {
 
   bool canJoinEvent(EventItem event) {
     final today = DateTime.now();
-    return today.isBefore(event.eventdate);
+    // Registration must have opened (today >= registrationStartDate)
+    final registrationOpen = !today.isBefore(event.eventdate);
+    // Event must not have expired (today <= eventExpiryDate)
+    final notExpired = event.eventExpiryDate == null ||
+        !today.isAfter(event.eventExpiryDate!);
+    return registrationOpen && notExpired;
   }
 
   Future<void> addEvent(EventItem event) async {
@@ -337,12 +342,14 @@ class DataService {
   List<EventItem> get completedEvents =>
       _events.where((e) => e.completed).toList();
 
-  /// Events the student has not joined yet and that are still upcoming.
+  /// Events the student has not joined yet and that have not yet expired.
   List<EventItem> get suggestedEvents => _events
       .where((e) =>
           !e.joined &&
           !e.completed &&
-          e.eventdate.isAfter(DateTime.now()))
+          (e.eventExpiryDate != null
+              ? e.eventExpiryDate!.isAfter(DateTime.now())
+              : e.eventdate.isAfter(DateTime.now())))
       .toList();
 
   // ---------------- NOTIFICATIONS ----------------

@@ -18,6 +18,7 @@ class EventItem {
   int completedcount;
 
   DateTime? completedAt;
+  DateTime? eventExpiryDate;
   final double latitude;
   final double longitude;
 
@@ -42,6 +43,7 @@ class EventItem {
     this.joined = false,
     this.completed = false,
     this.completedAt,
+    this.eventExpiryDate,
     this.latitude = 0.0,
     this.longitude = 0.0,
     this.joinedcount = 0,
@@ -83,6 +85,9 @@ class EventItem {
       starttime: map['start_time'] ?? '',
       endtime: map['end_time'] ?? '',
       imagepath: map['image_path'],
+      eventExpiryDate: map['event_expiry_date'] != null
+          ? DateTime.tryParse(map['event_expiry_date'].toString())
+          : null,
       latitude: (map['latitude'] ?? 0.0).toDouble(),
       longitude: (map['longitude'] ?? 0.0).toDouble(),
       targetCourses: _parseTargetCourses(map['target_course']),
@@ -101,6 +106,7 @@ class EventItem {
       'start_time': starttime,
       'end_time': endtime,
       'image_path': imagepath,
+      'event_expiry_date': eventExpiryDate?.toIso8601String(),
       'latitude': latitude,
       'longitude': longitude,
       // Store as JSON array string, or null when targeting everyone

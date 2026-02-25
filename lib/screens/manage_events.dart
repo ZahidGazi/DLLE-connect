@@ -24,10 +24,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
   double _selectedLat = 0.0;
   double _selectedLng = 0.0;
 
-  DateTime? startDate;
-  DateTime? endDate;
-  TimeOfDay? startTime;
-  TimeOfDay? endTime;
+  DateTime? registrationStartDate;
+  DateTime? eventExpiryDate;
   File? _selectedImage;
   String? _existingImageUrl; // URL from Supabase Storage (when editing)
 
@@ -84,51 +82,17 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
     }
   }
 
-  Future<void> pickDate(bool isStart) async {
+  Future<void> pickDate(bool isRegistrationStart) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: (isStart ? startDate : endDate) ?? DateTime.now(),
+      initialDate: (isRegistrationStart ? registrationStartDate : eventExpiryDate) ?? DateTime.now(),
       firstDate: DateTime(2023),
       lastDate: DateTime(2030),
     );
     if (picked != null) {
-      setState(() => isStart ? startDate = picked : endDate = picked);
-    }
-  }
-
-  Future<void> pickTime(bool isStart) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: (isStart ? startTime : endTime) ??
-          const TimeOfDay(hour: 10, minute: 0),
-    );
-    if (picked != null) {
-      setState(() => isStart ? startTime = picked : endTime = picked);
-    }
-  }
-
-  String _formatTime(TimeOfDay? time) {
-    if (time == null) return "Select time";
-    final hour =
-        time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final minute = time.minute.toString().padLeft(2, '0');
-    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
-    return "$hour:$minute $period";
-  }
-
-  TimeOfDay? _parseTime(String timeStr) {
-    try {
-      final parts = timeStr.split(' ');
-      if (parts.length != 2) return null;
-      final timeParts = parts[0].split(':');
-      if (timeParts.length != 2) return null;
-      int hour = int.parse(timeParts[0]);
-      int minute = int.parse(timeParts[1]);
-      if (parts[1].toUpperCase() == 'PM' && hour != 12) hour += 12;
-      if (parts[1].toUpperCase() == 'AM' && hour == 12) hour = 0;
-      return TimeOfDay(hour: hour, minute: minute);
-    } catch (e) {
-      return null;
+      setState(() => isRegistrationStart
+          ? registrationStartDate = picked
+          : eventExpiryDate = picked);
     }
   }
 
@@ -141,10 +105,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       _selectedLat = event.latitude;
       _selectedLng = event.longitude;
       hoursController.text = event.hours.toString();
-      startDate = event.eventdate;
-      endDate = event.eventdate;
-      startTime = _parseTime(event.starttime);
-      endTime = _parseTime(event.endtime);
+      registrationStartDate = event.eventdate;
+      eventExpiryDate = event.eventExpiryDate;
       _selectedTargetCourses = List<String>.from(event.targetCourses ?? []);
       _selectedTargetYear = event.targetYear;
 
@@ -176,10 +138,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       _selectedDisplayAddress = null;
       _selectedLat = 0.0;
       _selectedLng = 0.0;
-      startDate = null;
-      endDate = null;
-      startTime = null;
-      endTime = null;
+      registrationStartDate = null;
+      eventExpiryDate = null;
       _selectedImage = null;
       _existingImageUrl = null;
       _selectedTargetCourses = [];
@@ -327,27 +287,12 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
             Row(
               children: [
                 Expanded(
-                    child: _dateBox("Start Date", startDate,
+                    child: _dateBox("Registration Start Date", registrationStartDate,
                         () => pickDate(true), cardColor, textColor, subTextColor)),
                 const SizedBox(width: 12),
                 Expanded(
-                    child: _dateBox("End Date", endDate,
+                    child: _dateBox("Event Expiry Date", eventExpiryDate,
                         () => pickDate(false), cardColor, textColor, subTextColor)),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // -------- TIME PICKERS --------
-            Row(
-              children: [
-                Expanded(
-                    child: _timeBox("Start Time", startTime,
-                        () => pickTime(true), cardColor, textColor, subTextColor)),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: _timeBox("End Time", endTime,
-                        () => pickTime(false), cardColor, textColor, subTextColor)),
               ],
             ),
 
@@ -480,7 +425,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       (_selectedDisplayAddress == null ||
                           _selectedDisplayAddress!.isEmpty) ||
                       hoursController.text.isEmpty ||
-                      startDate == null) {
+                      registrationStartDate == null ||
+                      eventExpiryDate == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                           content: Text("Please fill all fields")),
@@ -489,12 +435,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                   }
 
                   String dateStr =
-                      "${startDate!.day}/${startDate!.month}/${startDate!.year}";
-                  String startTimeStr = _formatTime(
-                      startTime ??
-                          const TimeOfDay(hour: 10, minute: 0));
-                  String endTimeStr = _formatTime(
-                      endTime ?? const TimeOfDay(hour: 14, minute: 0));
+                      "${registrationStartDate!.day}/${registrationStartDate!.month}/${registrationStartDate!.year}";
 
                   // Upload image to Supabase Storage if a new local file was picked
                   String? finalImageUrl = _existingImageUrl;
@@ -524,9 +465,10 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       date: dateStr,
                       hours: int.parse(hoursController.text),
                       imagepath: finalImageUrl,
-                      eventdate: startDate!,
-                      starttime: startTimeStr,
-                      endtime: endTimeStr,
+                      eventdate: registrationStartDate!,
+                      eventExpiryDate: eventExpiryDate,
+                      starttime: '',
+                      endtime: '',
                       latitude: _selectedLat,
                       longitude: _selectedLng,
                       targetCourses: _selectedTargetCourses.isEmpty
@@ -546,9 +488,10 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       imagepath: finalImageUrl,
                       joined: _editingEvent!.joined,
                       completed: _editingEvent!.completed,
-                      eventdate: startDate!,
-                      starttime: startTimeStr,
-                      endtime: endTimeStr,
+                      eventdate: registrationStartDate!,
+                      eventExpiryDate: eventExpiryDate,
+                      starttime: '',
+                      endtime: '',
                       latitude: _selectedLat,
                       longitude: _selectedLng,
                       targetCourses: _selectedTargetCourses.isEmpty
@@ -663,12 +606,14 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                                             color: textColor,
                                             fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 4),
-                                    Text(event.date,
+                                    Text(
+                                        "Reg. starts: ${event.date}",
                                         style: TextStyle(
                                             color: subTextColor,
                                             fontSize: 12)),
-                                    Text(
-                                        "${event.starttime} - ${event.endtime}",
+                                    if (event.eventExpiryDate != null)
+                                      Text(
+                                        "Expires: ${event.eventExpiryDate!.day}/${event.eventExpiryDate!.month}/${event.eventExpiryDate!.year}",
                                         style: TextStyle(
                                             color: subTextColor,
                                             fontSize: 12)),
@@ -989,37 +934,4 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
     );
   }
 
-  Widget _timeBox(String label, TimeOfDay? time, VoidCallback onTap,
-      Color cardColor, Color textColor, Color subTextColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: TextStyle(color: textColor.withOpacity(0.7))),
-        const SizedBox(height: 6),
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 14),
-            decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(10)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _formatTime(time),
-                  style:
-                      TextStyle(color: textColor.withOpacity(0.7)),
-                ),
-                Icon(Icons.access_time,
-                    color: subTextColor, size: 18),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }
