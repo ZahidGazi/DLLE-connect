@@ -18,12 +18,12 @@ class DataService {
   final _supabase = Supabase.instance.client;
 
   // ---------------- THEME NOTIFIER ----------------
-  final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
+  final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
   bool get isDarkMode => themeNotifier.value == ThemeMode.dark;
 
   Future<void> loadThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDark = prefs.getBool('isDarkMode') ?? true;
+    final isDark = prefs.getBool('isDarkMode') ?? false;
     themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
   }
 

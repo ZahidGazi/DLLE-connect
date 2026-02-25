@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'data_service.dart';
 import 'event_model.dart';
+import 'location_picker_sheet.dart';
 
 class EditEventScreen extends StatefulWidget {
   final EventItem event;
@@ -14,22 +15,29 @@ class EditEventScreen extends StatefulWidget {
 class _EditEventScreenState extends State<EditEventScreen> {
   late TextEditingController titleController;
   late TextEditingController descController;
-  late TextEditingController locationController;
   late TextEditingController hoursController;
   late DateTime selectedDate;
   TimeOfDay? startTime;
   TimeOfDay? endTime;
+
+  // Location fields
+  String? _selectedDisplayAddress;
+  double _selectedLat = 0.0;
+  double _selectedLng = 0.0;
 
   @override
   void initState() {
     super.initState();
     titleController = TextEditingController(text: widget.event.title);
     descController = TextEditingController(text: widget.event.description);
-    locationController = TextEditingController(text: widget.event.location);
     hoursController = TextEditingController(text: widget.event.hours.toString());
     selectedDate = widget.event.eventdate;
     startTime = _parseTime(widget.event.starttime);
     endTime = _parseTime(widget.event.endtime);
+    _selectedDisplayAddress =
+        widget.event.location.isNotEmpty ? widget.event.location : null;
+    _selectedLat = widget.event.latitude;
+    _selectedLng = widget.event.longitude;
   }
 
   TimeOfDay? _parseTime(String timeStr) {
@@ -102,7 +110,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
             _input("Description", descController, inputFillColor, textColor, subTextColor, maxLines: 3),
             const SizedBox(height: 12),
             _label("Location", textColor),
-            _input("Location", locationController, inputFillColor, textColor, subTextColor),
+            _chooseLocationButton(cardColor, textColor, subTextColor, inputFillColor),
             const SizedBox(height: 12),
             _label("Hours", textColor),
             _input("Hours", hoursController, inputFillColor, textColor, subTextColor, keyboardType: TextInputType.number),
@@ -210,7 +218,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
                     id: widget.event.id,
                     title: titleController.text,
                     description: descController.text,
-                    location: locationController.text,
+                    location: _selectedDisplayAddress ?? '',
                     date: dateStr,
                     eventdate: selectedDate,
                     hours: int.parse(hoursController.text),
@@ -218,6 +226,8 @@ class _EditEventScreenState extends State<EditEventScreen> {
                     endtime: endTimeStr,
                     joined: widget.event.joined,
                     completed: widget.event.completed,
+                    latitude: _selectedLat,
+                    longitude: _selectedLng,
                   );
 
                   await DataService.instance.updateEvent(updated);
@@ -233,6 +243,91 @@ class _EditEventScreenState extends State<EditEventScreen> {
                   style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// "Choose Location" button + selected address preview
+  Widget _chooseLocationButton(
+    Color cardColor,
+    Color textColor,
+    Color subTextColor,
+    Color inputFillColor,
+  ) {
+    final hasLocation =
+        _selectedDisplayAddress != null && _selectedDisplayAddress!.isNotEmpty;
+
+    return GestureDetector(
+      onTap: () async {
+        final result = await showLocationPicker(
+          context,
+          initialLat: _selectedLat != 0.0 ? _selectedLat : null,
+          initialLng: _selectedLng != 0.0 ? _selectedLng : null,
+          initialAddress: _selectedDisplayAddress,
+        );
+        if (result != null) {
+          setState(() {
+            _selectedDisplayAddress = result.displayAddress;
+            _selectedLat = result.latitude;
+            _selectedLng = result.longitude;
+          });
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: hasLocation ? inputFillColor : cardColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: hasLocation
+                ? Colors.blueAccent.withOpacity(0.5)
+                : subTextColor.withOpacity(0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              hasLocation ? Icons.location_on : Icons.add_location_alt,
+              color: hasLocation
+                  ? Colors.blueAccent
+                  : subTextColor.withOpacity(0.6),
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: hasLocation
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedDisplayAddress!,
+                          style: TextStyle(color: textColor, fontSize: 13),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_selectedLat.toStringAsFixed(5)}, ${_selectedLng.toStringAsFixed(5)}',
+                          style: TextStyle(
+                              color: subTextColor.withOpacity(0.6),
+                              fontSize: 11),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      'Choose Location',
+                      style: TextStyle(
+                          color: subTextColor.withOpacity(0.6), fontSize: 14),
+                    ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: subTextColor.withOpacity(0.5),
+              size: 18,
             ),
           ],
         ),

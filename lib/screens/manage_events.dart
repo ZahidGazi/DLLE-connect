@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'data_service.dart';
 import 'event_model.dart';
 import 'event_analytics.dart';
+import 'location_picker_sheet.dart';
 import '../utils/responsive_helper.dart';
 
 class ManageEventsScreen extends StatefulWidget {
@@ -16,8 +17,12 @@ class ManageEventsScreen extends StatefulWidget {
 class _ManageEventsScreenState extends State<ManageEventsScreen> {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descController = TextEditingController();
-  final TextEditingController locationController = TextEditingController();
   final TextEditingController hoursController = TextEditingController();
+
+  // Location fields
+  String? _selectedDisplayAddress;
+  double _selectedLat = 0.0;
+  double _selectedLng = 0.0;
 
   DateTime? startDate;
   DateTime? endDate;
@@ -127,7 +132,9 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       _editingEvent = event;
       titleController.text = event.title;
       descController.text = event.description;
-      locationController.text = event.location;
+      _selectedDisplayAddress = event.location.isNotEmpty ? event.location : null;
+      _selectedLat = event.latitude;
+      _selectedLng = event.longitude;
       hoursController.text = event.hours.toString();
       startDate = event.eventdate;
       endDate = event.eventdate;
@@ -160,8 +167,10 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
       _editingEvent = null;
       titleController.clear();
       descController.clear();
-      locationController.clear();
       hoursController.clear();
+      _selectedDisplayAddress = null;
+      _selectedLat = 0.0;
+      _selectedLng = 0.0;
       startDate = null;
       endDate = null;
       startTime = null;
@@ -300,8 +309,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                 textColor, subTextColor,
                 maxLines: 3),
             _label("Location", textColor),
-            _input(locationController, "Enter location", inputFillColor,
-                textColor, subTextColor),
+            _chooseLocationButton(
+                cardColor, textColor, subTextColor, inputFillColor),
             _label("Hours", textColor),
             _input(hoursController, "Enter hours", inputFillColor,
                 textColor, subTextColor,
@@ -462,7 +471,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                 onPressed: () async {
                   if (titleController.text.isEmpty ||
                       descController.text.isEmpty ||
-                      locationController.text.isEmpty ||
+                      (_selectedDisplayAddress == null ||
+                          _selectedDisplayAddress!.isEmpty) ||
                       hoursController.text.isEmpty ||
                       startDate == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -504,13 +514,15 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                     final event = EventItem(
                       title: titleController.text,
                       description: descController.text,
-                      location: locationController.text,
+                      location: _selectedDisplayAddress!,
                       date: dateStr,
                       hours: int.parse(hoursController.text),
                       imagepath: finalImageUrl,
                       eventdate: startDate!,
                       starttime: startTimeStr,
                       endtime: endTimeStr,
+                      latitude: _selectedLat,
+                      longitude: _selectedLng,
                       targetCourse: _selectedTargetCourse,
                       targetYear: _selectedTargetYear,
                     );
@@ -520,7 +532,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       id: _editingEvent!.id,
                       title: titleController.text,
                       description: descController.text,
-                      location: locationController.text,
+                      location: _selectedDisplayAddress!,
                       date: dateStr,
                       hours: int.parse(hoursController.text),
                       imagepath: finalImageUrl,
@@ -529,6 +541,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
                       eventdate: startDate!,
                       starttime: startTimeStr,
                       endtime: endTimeStr,
+                      latitude: _selectedLat,
+                      longitude: _selectedLng,
                       targetCourse: _selectedTargetCourse,
                       targetYear: _selectedTargetYear,
                     );
@@ -738,6 +752,94 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide.none),
+      ),
+    );
+  }
+
+  /// "Choose Location" button + selected address preview
+  Widget _chooseLocationButton(
+    Color cardColor,
+    Color textColor,
+    Color subTextColor,
+    Color inputFillColor,
+  ) {
+    final hasLocation = _selectedDisplayAddress != null &&
+        _selectedDisplayAddress!.isNotEmpty;
+
+    return GestureDetector(
+      onTap: () async {
+        final result = await showLocationPicker(
+          context,
+          initialLat: _selectedLat != 0.0 ? _selectedLat : null,
+          initialLng: _selectedLng != 0.0 ? _selectedLng : null,
+          initialAddress: _selectedDisplayAddress,
+        );
+        if (result != null) {
+          setState(() {
+            _selectedDisplayAddress = result.displayAddress;
+            _selectedLat = result.latitude;
+            _selectedLng = result.longitude;
+          });
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: hasLocation ? inputFillColor : cardColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: hasLocation
+                ? Colors.blueAccent.withOpacity(0.5)
+                : subTextColor.withOpacity(0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              hasLocation ? Icons.location_on : Icons.add_location_alt,
+              color: hasLocation
+                  ? Colors.blueAccent
+                  : subTextColor.withOpacity(0.6),
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: hasLocation
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedDisplayAddress!,
+                          style: TextStyle(
+                              color: textColor, fontSize: 13),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_selectedLat.toStringAsFixed(5)}, ${_selectedLng.toStringAsFixed(5)}',
+                          style: TextStyle(
+                              color: subTextColor.withOpacity(0.6),
+                              fontSize: 11),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      'Choose Location',
+                      style: TextStyle(
+                          color: subTextColor.withOpacity(0.6),
+                          fontSize: 14),
+                    ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: subTextColor.withOpacity(0.5),
+              size: 18,
+            ),
+          ],
+        ),
       ),
     );
   }
