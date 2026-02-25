@@ -337,6 +337,14 @@ class DataService {
   List<EventItem> get completedEvents =>
       _events.where((e) => e.completed).toList();
 
+  /// Events the student has not joined yet and that are still upcoming.
+  List<EventItem> get suggestedEvents => _events
+      .where((e) =>
+          !e.joined &&
+          !e.completed &&
+          e.eventdate.isAfter(DateTime.now()))
+      .toList();
+
   // ---------------- NOTIFICATIONS ----------------
   List<AppNotification> notifications = [];
 

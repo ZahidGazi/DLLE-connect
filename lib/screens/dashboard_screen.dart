@@ -146,6 +146,7 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
     }
 
     final data = DataService.instance;
+    final suggestedEvents = data.suggestedEvents;
     final joinedEvents = data.joinedEvents;
     final completedEvents = data.completedEvents;
     final totalHours = completedEvents.fold<int>(0, (sum, e) => sum + e.hours);
@@ -366,6 +367,39 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
 
               const SizedBox(height: 20),
 
+              // -------- EVENT SUGGESTIONS SECTION --------
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        "Event Suggestions",
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontSize: ResponsiveHelper.fontSize(context, 16),
+                            ),
+                      ),
+                    ],
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        _navigateToEventList("Event Suggestions", suggestedEvents),
+                    child: const Text("View All",
+                        style: TextStyle(color: Colors.indigo)),
+                  ),
+                ],
+              ),
+
+              if (suggestedEvents.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: Text("No suggestions available")),
+                ),
+
+              for (var e in suggestedEvents.take(3)) suggestionTile(e),
+
+              const SizedBox(height: 10),
+
               // -------- JOINED EVENTS SECTION --------
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -490,6 +524,72 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
               ),
             ),
             Icon(Icons.arrow_forward_ios, color: Theme.of(context).iconTheme.color, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget suggestionTile(EventItem event) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => EventDetailsScreen(event: event)),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.orangeAccent.withOpacity(0.4),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.title,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      fontSize: ResponsiveHelper.fontSize(context, 14),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    event.date,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                      fontSize: ResponsiveHelper.fontSize(context, 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                "${event.hours} hrs",
+                style: TextStyle(
+                  color: Colors.orangeAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: ResponsiveHelper.fontSize(context, 12),
+                ),
+              ),
+            ),
           ],
         ),
       ),
