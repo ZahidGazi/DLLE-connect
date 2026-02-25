@@ -2,9 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:native_exif/native_exif.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:device_info_plus/device_info_plus.dart'; // Add this to pubspec if missing
+import 'package:device_info_plus/device_info_plus.dart';
 import 'data_service.dart';
 import 'event_model.dart';
 
@@ -18,225 +17,401 @@ class UploadScreen extends StatefulWidget {
 class _UploadScreenState extends State<UploadScreen> {
   File? _selectedImage;
   EventItem? _selectedEvent;
-  bool _isLocating = false;
+  bool _isSubmitting = false;
   String _statusMessage = "";
+  bool _isSuccess = false;
 
   @override
   void initState() {
     super.initState();
     _requestAllPermissions();
+    _refreshEvents();
   }
 
-  /// ✅ FIXED PERMISSION LOGIC FOR ANDROID 13+
+  /// Refresh events from DB so joined/completed flags are up-to-date
+  Future<void> _refreshEvents() async {
+    await DataService.instance.fetchEvents();
+    if (mounted) setState(() {});
+  }
+
+  /// Request all required permissions on startup (Android 13+ aware)
   Future<void> _requestAllPermissions() async {
-    // 1. Request Location & Camera (Standard)
     await [
       Permission.location,
       Permission.camera,
-      Permission.accessMediaLocation, // Critical for Jiotag
+      Permission.accessMediaLocation,
     ].request();
 
-    // 2. Handle Storage Logic based on Android Version
     if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       if (androidInfo.version.sdkInt >= 33) {
-        // Android 13+ uses 'Photos' permission
         await Permission.photos.request();
       } else {
-        // Android 12 and below uses 'Storage' permission
         await Permission.storage.request();
       }
     }
   }
 
-  Future<void> _pickAndValidateImage() async {
+  /// Step 1 — Pick a proof photo from gallery (no validation yet)
+  Future<void> _pickImage() async {
     if (_selectedEvent == null) {
-      _showError("Please select an event first.");
+      _showSnack("Please select an event first.", isError: true);
       return;
     }
 
     try {
       final picker = ImagePicker();
-      // ✅ Fix: Request lower quality to prevent memory crashes
       final pickedFile = await picker.pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 50
+        source: ImageSource.gallery,
+        imageQuality: 50,
       );
 
       if (pickedFile != null) {
         setState(() {
           _selectedImage = File(pickedFile.path);
-          _statusMessage = "Analyzing Location Data...";
-          _isLocating = true;
+          _statusMessage =
+              "Photo selected. Tap Submit to verify your location.";
+          _isSuccess = false;
         });
-
-        await _validateLocationLogic(File(pickedFile.path));
       }
     } catch (e) {
-      _showError("Error picking image: $e");
+      _showSnack("Error picking image: $e", isError: true);
     }
   }
 
-  Future<void> _validateLocationLogic(File imageFile) async {
+  /// Step 2 — Submit: get precise GPS, check 500m radius, mark completed
+  Future<void> _submitProof() async {
+    if (_selectedEvent == null) {
+      _showSnack("Please select an event.", isError: true);
+      return;
+    }
+    if (_selectedImage == null) {
+      _showSnack("Please select a proof photo first.", isError: true);
+      return;
+    }
+    if (_selectedEvent!.completed) {
+      _showSnack("You have already completed this event.", isError: true);
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _statusMessage = "Getting your precise location...";
+      _isSuccess = false;
+    });
+
     try {
-      // 1. Get Student Current Location
-      Position studentPos = await Geolocator.getCurrentPosition(
+      // 1. Ensure location permission is granted
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        perm = await Geolocator.requestPermission();
+        if (perm == LocationPermission.denied ||
+            perm == LocationPermission.deniedForever) {
+          throw "Location permission denied. Please enable it in Settings.";
+        }
+      }
+
+      // 2. Get student's current GPS position
+      final Position studentPos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // 2. Get Photo GeoTag
-      final exif = await Exif.fromPath(imageFile.path);
-      final latLong = await exif.getLatLong();
-      await exif.close();
+      // 3. Calculate distance to event location
+      final double eventLat = _selectedEvent!.latitude;
+      final double eventLng = _selectedEvent!.longitude;
 
-      // ✅ DETAILED ERROR MSG IF MISSING
-      if (latLong == null) {
-        throw """
-        No GeoTag found in photo! 
-        1. Open Camera App > Settings
-        2. Turn ON 'Location tags' or 'Save location'
-        3. Take a NEW photo and try again.
-        """;
-      }
-
-      // 3. Get Event Location
-      double eventLat = _selectedEvent!.latitude;
-      double eventLng = _selectedEvent!.longitude;
-
-      // 4. Calculate Distances
-      double distStudentToEvent = Geolocator.distanceBetween(
-          studentPos.latitude, studentPos.longitude,
-          eventLat, eventLng
+      final double distance = Geolocator.distanceBetween(
+        studentPos.latitude,
+        studentPos.longitude,
+        eventLat,
+        eventLng,
       );
 
-      double distPhotoToEvent = Geolocator.distanceBetween(
-          latLong.latitude, latLong.longitude,
-          eventLat, eventLng
+      const double radiusLimit = 500.0; // metres
+
+      if (distance > radiusLimit) {
+        throw "You are ${distance.toStringAsFixed(0)}m away from the event.\n"
+            "You must be within ${radiusLimit.toStringAsFixed(0)}m to submit proof.";
+      }
+
+      // 4. Mark event as completed in DB + reward hours
+      setState(() => _statusMessage = "Saving your completion...");
+
+      final int rewardedHours = _selectedEvent!.hours;
+
+      await DataService.instance.completeEvent(
+        _selectedEvent!,
+        DataService.instance.studentId,
       );
 
-      // Threshold: 500m (Increased to prevent false negatives during testing)
-      double limit = 500.0;
+      // 5. Refresh events list so UI reflects completed state
+      await DataService.instance.fetchEvents();
 
-      if (distStudentToEvent > limit) {
-        throw "You are too far from the event! (${distStudentToEvent.toStringAsFixed(0)}m away)";
-      }
+      if (!mounted) return;
 
-      if (distPhotoToEvent > limit) {
-        throw "Photo taken too far from event! (${distPhotoToEvent.toStringAsFixed(0)}m away)";
-      }
-
-      // SUCCESS
       setState(() {
-        _isLocating = false;
-        _statusMessage = "✅ Verified! Upload Successful.";
-      });
-      _showSuccess("Event Verified Successfully!");
-
-      if (!DataService.instance.completedEvents.contains(_selectedEvent)) {
-        DataService.instance.completedEvents.add(_selectedEvent!);
-      }
-
-    } catch (e) {
-      setState(() {
-        _isLocating = false;
+        _isSubmitting = false;
+        _isSuccess = true;
+        _statusMessage =
+            "✅ Verified! You were ${distance.toStringAsFixed(0)}m from the event.\n"
+            "Event marked as completed — $rewardedHours hour(s) rewarded!";
+        // Reset selection so the completed event disappears from dropdown
+        _selectedEvent = null;
         _selectedImage = null;
-        _statusMessage = "Validation Failed ❌";
       });
-      // Show the full error on screen so you can debug it
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text("Validation Error"),
-          content: Text(e.toString()),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK"))
-          ],
-        ),
-      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        _isSuccess = false;
+        _statusMessage = e.toString();
+      });
     }
   }
 
-  void _showError(String msg) {
+  void _showSnack(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
-    );
-  }
-
-  void _showSuccess(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.green),
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final events = DataService.instance.events;
+    final now = DateTime.now();
+    // Only show: joined + not yet completed + not expired
+    final events = DataService.instance.events
+        .where((e) =>
+            e.joined &&
+            !e.completed &&
+            (e.eventExpiryDate == null || e.eventExpiryDate!.isAfter(now)))
+        .toList();
+
+    // Ensure _selectedEvent still exists in the filtered list (by ID)
+    if (_selectedEvent != null) {
+      final match = events.cast<EventItem?>().firstWhere(
+        (e) => e?.id == _selectedEvent?.id,
+        orElse: () => null,
+      );
+      if (match == null) {
+        // Selected event no longer in list (completed / expired / removed)
+        _selectedEvent = null;
+        _selectedImage = null;
+      } else {
+        _selectedEvent = match;
+      }
+    }
+
+    final bool canSubmit =
+        _selectedEvent != null && _selectedImage != null && !_isSubmitting;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(title: const Text("Upload Proof"), automaticallyImplyLeading: false),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            DropdownButtonFormField<EventItem>(
-              decoration: const InputDecoration(labelText: "Select Event"),
-              items: events.map((e) => DropdownMenuItem(
-                value: e,
-                child: Text(e.title),
-              )).toList(),
-              onChanged: (val) => setState(() {
-                _selectedEvent = val;
-                _selectedImage = null;
-                _statusMessage = "";
-              }),
-              dropdownColor: Theme.of(context).cardTheme.color,
-            ),
-
-            const SizedBox(height: 20),
-
-            GestureDetector(
-              onTap: _pickAndValidateImage,
-              child: Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardTheme.color,
-                  border: Border.all(color: Colors.white24),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: _selectedImage == null
-                    ? const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_a_photo, size: 40),
-                    SizedBox(height: 8),
-                    Text("Tap to pick GeoTagged Photo"),
-                  ],
-                )
-                    : Image.file(_selectedImage!, fit: BoxFit.cover),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            if (_isLocating)
-              const CircularProgressIndicator()
-            else
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  _statusMessage,
-                  style: TextStyle(
-                    color: _statusMessage.contains("✅") ? Colors.green : Colors.redAccent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+      appBar: AppBar(
+        title: const Text("Upload Proof"),
+        automaticallyImplyLeading: false,
+      ),
+      body: Column(
+        children: [
+          // ── Scrollable content ──
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Event selector
+                  DropdownButtonFormField<EventItem>(
+                    decoration:
+                        const InputDecoration(labelText: "Select Event"),
+                    value: _selectedEvent,
+                    items: events
+                        .map((e) => DropdownMenuItem(
+                              value: e,
+                              child: Text(e.title),
+                            ))
+                        .toList(),
+                    onChanged: (val) => setState(() {
+                      _selectedEvent = val;
+                      _selectedImage = null;
+                      _statusMessage = "";
+                      _isSuccess = false;
+                    }),
+                    dropdownColor: Theme.of(context).cardTheme.color,
                   ),
-                  textAlign: TextAlign.center,
+
+                  const SizedBox(height: 20),
+
+                  // Image picker area
+                  GestureDetector(
+                    onTap: _isSubmitting ? null : _pickImage,
+                    child: Container(
+                      height: 220,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardTheme.color,
+                        border: Border.all(color: Colors.white24),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _selectedImage == null
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_a_photo,
+                                    size: 48,
+                                    color: Theme.of(context)
+                                        .iconTheme
+                                        .color
+                                        ?.withOpacity(0.5)),
+                                const SizedBox(height: 10),
+                                Text(
+                                  "Tap to select proof photo",
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withOpacity(0.5),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                _selectedImage!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: 220,
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Status message box
+                  if (_statusMessage.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: _isSuccess
+                            ? Colors.green.withOpacity(0.1)
+                            : _isSubmitting
+                                ? Colors.blue.withOpacity(0.1)
+                                : _statusMessage.startsWith("Photo selected")
+                                    ? Colors.orange.withOpacity(0.1)
+                                    : Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _isSuccess
+                              ? Colors.green.withOpacity(0.4)
+                              : _isSubmitting
+                                  ? Colors.blue.withOpacity(0.4)
+                                  : _statusMessage
+                                          .startsWith("Photo selected")
+                                      ? Colors.orange.withOpacity(0.4)
+                                      : Colors.red.withOpacity(0.4),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_isSubmitting)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 10, top: 2),
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2),
+                              ),
+                            ),
+                          Expanded(
+                            child: Text(
+                              _statusMessage,
+                              style: TextStyle(
+                                color: _isSuccess
+                                    ? Colors.green
+                                    : _isSubmitting
+                                        ? Colors.blue
+                                        : _statusMessage
+                                                .startsWith("Photo selected")
+                                            ? Colors.orange.shade700
+                                            : Colors.redAccent,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Empty state
+                  if (events.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 32),
+                      child: Center(
+                        child: Text(
+                          "No active joined events to upload proof for.",
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withOpacity(0.5),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Fixed Submit button at bottom ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: canSubmit ? _submitProof : null,
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check_circle_outline),
+                label: Text(
+                  _isSubmitting ? "Verifying..." : "Submit Proof",
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: canSubmit ? Colors.blue : Colors.grey,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade400,
+                  disabledForegroundColor: Colors.white70,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
