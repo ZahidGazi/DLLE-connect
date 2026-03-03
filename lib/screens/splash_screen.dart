@@ -143,7 +143,7 @@ class _SplashScreenState extends State<SplashScreen> {
             SizedBox(
               height: ResponsiveHelper.imageHeight(context, 130),
               child: Image.asset(
-                'assets/login_image.png',
+                'assets/logo.png',
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.account_circle, size: 100, color: Colors.blueAccent),
