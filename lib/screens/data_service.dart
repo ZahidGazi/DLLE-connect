@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +17,38 @@ class DataService {
   static final DataService instance = DataService._privateConstructor();
 
   final _supabase = Supabase.instance.client;
+
+  // ---------------- RETRY HELPER ----------------
+  /// Retries [fn] up to [maxRetries] times when a transient Supabase
+  /// cold-start error (HTTP 525 SSL handshake failure) is encountered.
+  /// Free-tier Supabase projects pause after inactivity and need a few
+  /// seconds to spin back up — this handles that transparently.
+  static Future<T> _withRetry<T>(
+    Future<T> Function() fn, {
+    int maxRetries = 3,
+    Duration initialDelay = const Duration(seconds: 1),
+  }) async {
+    int attempt = 0;
+    Duration delay = initialDelay;
+    while (true) {
+      try {
+        return await fn();
+      } catch (e) {
+        attempt++;
+        final isTransient = (e is PostgrestException &&
+                (e.code == '525' || e.message.contains('525'))) ||
+            e is SocketException;
+        if (isTransient && attempt < maxRetries) {
+          debugPrint(
+              '[DataService] Transient error (attempt $attempt/$maxRetries), retrying in ${delay.inSeconds}s… ($e)');
+          await Future.delayed(delay);
+          delay = Duration(milliseconds: (delay.inMilliseconds * 2));
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
 
   // ---------------- THEME NOTIFIER ----------------
   final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
@@ -109,11 +142,13 @@ class DataService {
 
   Future<void> login(String identifier) async {
     try {
-      final userData = await _supabase
-          .from('users')
-          .select()
-          .eq('identifier', identifier)
-          .single();
+      final userData = await _withRetry(
+        () => _supabase
+            .from('users')
+            .select()
+            .eq('identifier', identifier)
+            .single(),
+      );
       studentName = userData['full_name'] ?? '';
       studentId = userData['identifier'] ?? '';
       studentCourse = userData['department'] ?? '';
@@ -203,15 +238,18 @@ class DataService {
 
   Future<void> fetchEvents() async {
     try {
-      final response =
-          await _supabase.from('events').select().order('event_date');
+      final response = await _withRetry(
+        () => _supabase.from('events').select().order('event_date'),
+      );
       _events = (response as List).map((e) => EventItem.fromMap(e)).toList();
 
       if (studentId.isNotEmpty) {
-        final regs = await _supabase
-            .from('event_registrations')
-            .select()
-            .eq('student_id', studentId);
+        final regs = await _withRetry(
+          () => _supabase
+              .from('event_registrations')
+              .select()
+              .eq('student_id', studentId),
+        );
 
         final regList = regs as List;
         for (var event in _events) {
@@ -264,26 +302,32 @@ class DataService {
   }
 
   Future<void> addEvent(EventItem event) async {
-    await _supabase.from('events').insert(event.toMap());
+    await _withRetry(() => _supabase.from('events').insert(event.toMap()));
     await fetchEvents();
     addNotification("New Event Added", event.title);
   }
 
   Future<void> updateEvent(EventItem updatedEvent) async {
     if (updatedEvent.id == null) return;
-    await _supabase
-        .from('events')
-        .update(updatedEvent.toMap())
-        .eq('id', updatedEvent.id!);
+    await _withRetry(
+      () => _supabase
+          .from('events')
+          .update(updatedEvent.toMap())
+          .eq('id', updatedEvent.id!),
+    );
     await fetchEvents();
   }
 
   Future<void> deleteEvent(String eventId) async {
-    await _supabase.from('events').delete().eq('id', eventId);
-    await _supabase
-        .from('event_registrations')
-        .delete()
-        .eq('event_id', eventId);
+    await _withRetry(
+      () => _supabase.from('events').delete().eq('id', eventId),
+    );
+    await _withRetry(
+      () => _supabase
+          .from('event_registrations')
+          .delete()
+          .eq('event_id', eventId),
+    );
     await fetchEvents();
   }
 
@@ -292,11 +336,13 @@ class DataService {
     final eventId = event.id;
     if (eventId == null) return;
 
-    await _supabase.from('event_registrations').upsert({
-      'student_id': studentId,
-      'event_id': eventId,
-      'status': 'joined',
-    });
+    await _withRetry(
+      () => _supabase.from('event_registrations').upsert({
+        'student_id': studentId,
+        'event_id': eventId,
+        'status': 'joined',
+      }),
+    );
 
     await fetchEvents();
     addNotification("Event Joined", event.title);
@@ -306,10 +352,12 @@ class DataService {
     final eventId = event.id;
     if (eventId == null) return;
 
-    await _supabase.from('event_registrations').update({
-      'status': 'completed',
-      'completed_at': DateTime.now().toIso8601String(),
-    }).match({'student_id': studentId, 'event_id': eventId});
+    await _withRetry(
+      () => _supabase.from('event_registrations').update({
+        'status': 'completed',
+        'completed_at': DateTime.now().toIso8601String(),
+      }).match({'student_id': studentId, 'event_id': eventId}),
+    );
 
     await getTotalHours(studentId);
     await fetchEvents();
@@ -319,11 +367,13 @@ class DataService {
   // ---------------- DASHBOARD ----------------
   Future<int> getTotalHours(String studentId) async {
     try {
-      final regs = await _supabase
-          .from('event_registrations')
-          .select('event_id, status, events(hours)')
-          .eq('student_id', studentId)
-          .eq('status', 'completed');
+      final regs = await _withRetry(
+        () => _supabase
+            .from('event_registrations')
+            .select('event_id, status, events(hours)')
+            .eq('student_id', studentId)
+            .eq('status', 'completed'),
+      );
 
       int calculatedHours = 0;
       for (var reg in (regs as List)) {
@@ -478,8 +528,10 @@ class DataService {
 
   // ---------------- REALTIME SUBSCRIPTIONS ----------------
   RealtimeChannel? _announcementsChannel;
+  RealtimeChannel? _eventsChannel;
 
   void initRealtimeSubscriptions() {
+    // ── Announcements channel ──
     _announcementsChannel = _supabase
         .channel('public:announcements')
         .onPostgresChanges(
@@ -531,12 +583,92 @@ class DataService {
           },
         )
         .subscribe();
+
+    // ── Events channel — notify eligible students when a new event is created ──
+    _eventsChannel = _supabase
+        .channel('public:events')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'events',
+          callback: (payload) {
+            try {
+              final newRow = payload.newRecord;
+              final eventTitle = newRow['title']?.toString() ?? 'New Event';
+
+              // Parse target_course from the new row (same logic as EventItem)
+              List<String>? targetCourses;
+              final rawCourse = newRow['target_course'];
+              if (rawCourse != null && rawCourse.toString().trim().isNotEmpty) {
+                try {
+                  final decoded = _parseJsonList(rawCourse.toString().trim());
+                  targetCourses = decoded;
+                } catch (_) {
+                  targetCourses = [rawCourse.toString()];
+                }
+              }
+              final int? targetYear = newRow['target_year'] != null
+                  ? int.tryParse(newRow['target_year'].toString())
+                  : null;
+
+              // Only notify if this student is logged in
+              if (!isLoggedIn || studentId.isEmpty) return;
+
+              // Check eligibility: same logic as fetchEvents filter
+              bool eligible = false;
+              if (targetCourses == null || targetCourses.isEmpty) {
+                // No targeting → all students are eligible
+                eligible = true;
+              } else if (targetCourses.contains(studentCourse)) {
+                // Student's course matches
+                if (targetYear == null) {
+                  eligible = true; // all years
+                } else {
+                  eligible = (targetYear == studentYearOfStudy);
+                }
+              }
+
+              if (!eligible) return;
+
+              // Show system notification + add to in-app list
+              NotificationService.showNotification(
+                title: "🎉 New Event Available",
+                body: eventTitle,
+              );
+
+              // Also refresh events list so the new event appears in the UI
+              fetchEvents();
+
+              debugPrint(
+                  "[DataService] New event notification sent: $eventTitle");
+            } catch (e) {
+              debugPrint("[DataService] Error in events realtime callback: $e");
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  /// Helper to parse a JSON array string into List<String>.
+  static List<String>? _parseJsonList(String str) {
+    try {
+      final decoded = jsonDecode(str);
+      if (decoded is List) {
+        final list = decoded.whereType<String>().toList();
+        return list.isEmpty ? null : list;
+      }
+    } catch (_) {}
+    return null;
   }
 
   void disposeRealtimeSubscriptions() {
     if (_announcementsChannel != null) {
       _supabase.removeChannel(_announcementsChannel!);
       _announcementsChannel = null;
+    }
+    if (_eventsChannel != null) {
+      _supabase.removeChannel(_eventsChannel!);
+      _eventsChannel = null;
     }
   }
 
@@ -546,10 +678,12 @@ class DataService {
 
   Future<void> fetchAnnouncements() async {
     try {
-      final response = await _supabase
-          .from('announcements')
-          .select()
-          .order('created_at', ascending: false);
+      final response = await _withRetry(
+        () => _supabase
+            .from('announcements')
+            .select()
+            .order('created_at', ascending: false),
+      );
       _announcements = (response as List).map((e) {
         return Announcement(
           id: e['id'].toString(),
@@ -607,26 +741,32 @@ class DataService {
 
   Future<void> addAnnouncement(String title, String message,
       {String? imageUrl}) async {
-    await _supabase.from('announcements').insert({
-      'title': title,
-      'message': message,
-      if (imageUrl != null) 'image_url': imageUrl,
-    });
+    await _withRetry(
+      () => _supabase.from('announcements').insert({
+        'title': title,
+        'message': message,
+        if (imageUrl != null) 'image_url': imageUrl,
+      }),
+    );
     // Realtime subscription handles updating the list and notifying users.
   }
 
   Future<void> updateAnnouncement(String id, String title, String message,
       {String? imageUrl}) async {
-    await _supabase.from('announcements').update({
-      'title': title,
-      'message': message,
-      'image_url': imageUrl, // null clears the image
-    }).eq('id', id);
+    await _withRetry(
+      () => _supabase.from('announcements').update({
+        'title': title,
+        'message': message,
+        'image_url': imageUrl, // null clears the image
+      }).eq('id', id),
+    );
     await fetchAnnouncements();
   }
 
   Future<void> deleteAnnouncement(String id) async {
-    await _supabase.from('announcements').delete().eq('id', id);
+    await _withRetry(
+      () => _supabase.from('announcements').delete().eq('id', id),
+    );
     // Also dismiss from notifications so it doesn't reappear
     _dismissedAnnouncementIds.add(id);
     await _saveDismissedIds();
@@ -644,10 +784,12 @@ class DataService {
 
   Future<void> fetchCourses() async {
     try {
-      final response = await _supabase
-          .from('courses')
-          .select()
-          .order('name', ascending: true);
+      final response = await _withRetry(
+        () => _supabase
+            .from('courses')
+            .select()
+            .order('name', ascending: true),
+      );
       _courses = List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
       debugPrint("Error fetching courses: $e");
@@ -656,10 +798,12 @@ class DataService {
 
   Future<void> addCourse(String name, int maxYear) async {
     try {
-      await _supabase.from('courses').insert({
-        'name': name,
-        'max_year': maxYear,
-      });
+      await _withRetry(
+        () => _supabase.from('courses').insert({
+          'name': name,
+          'max_year': maxYear,
+        }),
+      );
       await fetchCourses();
     } catch (e) {
       debugPrint("Error adding course: $e");
@@ -669,10 +813,12 @@ class DataService {
 
   Future<void> updateCourse(String id, String name, int maxYear) async {
     try {
-      await _supabase.from('courses').update({
-        'name': name,
-        'max_year': maxYear,
-      }).eq('id', id);
+      await _withRetry(
+        () => _supabase.from('courses').update({
+          'name': name,
+          'max_year': maxYear,
+        }).eq('id', id),
+      );
       await fetchCourses();
     } catch (e) {
       debugPrint("Error updating course: $e");
@@ -682,7 +828,9 @@ class DataService {
 
   Future<void> deleteCourse(String id) async {
     try {
-      await _supabase.from('courses').delete().eq('id', id);
+      await _withRetry(
+        () => _supabase.from('courses').delete().eq('id', id),
+      );
       await fetchCourses();
     } catch (e) {
       debugPrint("Error deleting course: $e");
@@ -698,13 +846,15 @@ class DataService {
     int yearOfStudy = 1,
   }) async {
     try {
-      await _supabase.from('users').insert({
-        'identifier': identifier,
-        'full_name': name,
-        'department': department,
-        'year_of_study': yearOfStudy,
-        'role': 'student',
-      });
+      await _withRetry(
+        () => _supabase.from('users').insert({
+          'identifier': identifier,
+          'full_name': name,
+          'department': department,
+          'year_of_study': yearOfStudy,
+          'role': 'student',
+        }),
+      );
       await getAllStudents();
     } catch (e) {
       debugPrint("Error creating student in database: $e");
@@ -718,10 +868,12 @@ class DataService {
     required String department,
   }) async {
     try {
-      await _supabase.from('users').update({
-        'full_name': name,
-        'department': department,
-      }).eq('identifier', originalIdentifier);
+      await _withRetry(
+        () => _supabase.from('users').update({
+          'full_name': name,
+          'department': department,
+        }).eq('identifier', originalIdentifier),
+      );
       await getAllStudents();
     } catch (e) {
       debugPrint("Error updating student: $e");
@@ -731,14 +883,18 @@ class DataService {
 
   Future<void> deleteStudent(String studentIdentifier) async {
     try {
-      await _supabase
-          .from('event_registrations')
-          .delete()
-          .eq('student_id', studentIdentifier);
-      await _supabase
-          .from('users')
-          .delete()
-          .eq('identifier', studentIdentifier);
+      await _withRetry(
+        () => _supabase
+            .from('event_registrations')
+            .delete()
+            .eq('student_id', studentIdentifier),
+      );
+      await _withRetry(
+        () => _supabase
+            .from('users')
+            .delete()
+            .eq('identifier', studentIdentifier),
+      );
       await getAllStudents();
     } catch (e) {
       debugPrint("Error deleting student: $e");
@@ -748,15 +904,18 @@ class DataService {
 
   Future<List<Student>> getAllStudents() async {
     try {
-      final response =
-          await _supabase.from('users').select().eq('role', 'student');
+      final response = await _withRetry(
+        () => _supabase.from('users').select().eq('role', 'student'),
+      );
       final List usersList = response as List;
 
       List regs = [];
       try {
-        final regsResponse = await _supabase
-            .from('event_registrations')
-            .select('*, events(title, hours)');
+        final regsResponse = await _withRetry(
+          () => _supabase
+              .from('event_registrations')
+              .select('*, events(title, hours)'),
+        );
         regs = regsResponse as List;
       } catch (regError) {
         debugPrint("Error fetching registrations: $regError");
@@ -797,11 +956,13 @@ class DataService {
 
   Future<List<Student>> getStudentsJoinedEvent(String eventId) async {
     try {
-      final response = await _supabase
-          .from('event_registrations')
-          .select('student_id, users(*)')
-          .eq('event_id', eventId)
-          .eq('status', 'joined');
+      final response = await _withRetry(
+        () => _supabase
+            .from('event_registrations')
+            .select('student_id, users(*)')
+            .eq('event_id', eventId)
+            .eq('status', 'joined'),
+      );
 
       return (response as List).map((item) {
         if (item['users'] == null) return null;
@@ -814,11 +975,13 @@ class DataService {
 
   Future<List<Student>> getStudentsCompletedEvent(String eventId) async {
     try {
-      final response = await _supabase
-          .from('event_registrations')
-          .select('student_id, users(*)')
-          .eq('event_id', eventId)
-          .eq('status', 'completed');
+      final response = await _withRetry(
+        () => _supabase
+            .from('event_registrations')
+            .select('student_id, users(*)')
+            .eq('event_id', eventId)
+            .eq('status', 'completed'),
+      );
 
       return (response as List).map((item) {
         if (item['users'] == null) return null;

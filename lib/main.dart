@@ -17,6 +17,23 @@ void main() async {
     ),
   );
 
+  // Warm-up ping: Supabase free-tier projects sleep after inactivity.
+  // Sending a lightweight request here triggers the project to wake up
+  // before the user reaches the login screen, so subsequent calls succeed
+  // on the first try instead of failing with a 525 cold-start error.
+  try {
+    await Supabase.instance.client
+        .from('events')
+        .select('id')
+        .limit(1)
+        .timeout(const Duration(seconds: 8));
+    debugPrint('[main] Supabase warm-up ping succeeded.');
+  } catch (e) {
+    // Ignore — the retry logic in DataService will handle any remaining
+    // cold-start failures transparently.
+    debugPrint('[main] Supabase warm-up ping failed (will retry on demand): $e');
+  }
+
   // Initialize local notifications (Android system notifications)
   await NotificationService.initialize();
   await NotificationService.requestPermission();
