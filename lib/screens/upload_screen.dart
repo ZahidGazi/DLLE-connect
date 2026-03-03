@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'data_service.dart';
 import 'event_model.dart';
+import '../services/Certificate_service.dart';
 
 class UploadScreen extends StatefulWidget {
   const UploadScreen({super.key});
@@ -17,7 +18,9 @@ class UploadScreen extends StatefulWidget {
 class _UploadScreenState extends State<UploadScreen> {
   File? _selectedImage;
   EventItem? _selectedEvent;
+  EventItem? _completedEvent; // holds the event after successful submission
   bool _isSubmitting = false;
+  bool _isGeneratingCert = false;
   String _statusMessage = "";
   bool _isSuccess = false;
 
@@ -150,9 +153,13 @@ class _UploadScreenState extends State<UploadScreen> {
 
       if (!mounted) return;
 
+      // Save reference before resetting so certificate can be generated
+      final justCompleted = _selectedEvent!;
+
       setState(() {
         _isSubmitting = false;
         _isSuccess = true;
+        _completedEvent = justCompleted;
         _statusMessage =
             "✅ Verified! You were ${distance.toStringAsFixed(0)}m from the event.\n"
             "Event marked as completed — $rewardedHours hour(s) rewarded!";
@@ -227,7 +234,7 @@ class _UploadScreenState extends State<UploadScreen> {
                   DropdownButtonFormField<EventItem>(
                     decoration:
                         const InputDecoration(labelText: "Select Event"),
-                    value: _selectedEvent,
+                    initialValue: _selectedEvent,
                     items: events
                         .map((e) => DropdownMenuItem(
                               value: e,
@@ -352,6 +359,108 @@ class _UploadScreenState extends State<UploadScreen> {
                         ],
                       ),
                     ),
+
+                  // ── Certificate download button (shown after success) ──
+                  if (_isSuccess && _completedEvent != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.amber.withOpacity(0.4),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.workspace_premium,
+                            color: Colors.amber,
+                            size: 36,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Your certificate is ready!",
+                            style: TextStyle(
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Download your Certificate of Participation",
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.color
+                                  ?.withOpacity(0.6),
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 46,
+                            child: ElevatedButton.icon(
+                              onPressed: _isGeneratingCert
+                                  ? null
+                                  : () async {
+                                      setState(
+                                          () => _isGeneratingCert = true);
+                                      try {
+                                        await CertificateService
+                                            .generateAndDownload(
+                                                _completedEvent!);
+                                      } catch (e) {
+                                        if (mounted) {
+                                          _showSnack(
+                                              "Error generating certificate: $e",
+                                              isError: true);
+                                        }
+                                      } finally {
+                                        if (mounted) {
+                                          setState(() =>
+                                              _isGeneratingCert = false);
+                                        }
+                                      }
+                                    },
+                              icon: _isGeneratingCert
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.download_rounded),
+                              label: Text(
+                                _isGeneratingCert
+                                    ? "Generating..."
+                                    : "Download Certificate",
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber.shade700,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   // Empty state
                   if (events.isEmpty)

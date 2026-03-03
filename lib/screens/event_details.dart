@@ -281,16 +281,23 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   Widget _infoRow(IconData icon, String label, String value, Color textColor, Color subTextColor) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 20, color: Colors.blueAccent),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: TextStyle(color: subTextColor, fontSize: 12)),
-            const SizedBox(height: 2),
-            Text(value, style: TextStyle(color: textColor, fontSize: 15)),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(color: subTextColor, fontSize: 12)),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(color: textColor, fontSize: 15),
+                softWrap: true,
+              ),
+            ],
+          ),
         ),
       ],
     );

@@ -7,6 +7,8 @@ import 'announcement_screen.dart';
 import 'upload_screen.dart';
 import 'setting_screen.dart';
 import 'notification_screen.dart';
+import 'certificates_screen.dart';
+import '../services/Certificate_service.dart';
 import '../utils/responsive_helper.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -532,6 +534,46 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
                 ),
 
               for (var e in completedEvents.take(3)) completedTile(e),
+
+              const SizedBox(height: 10),
+
+              // -------- MY CERTIFICATES SECTION --------
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.workspace_premium, color: Colors.amber, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        "My Certificates",
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: ResponsiveHelper.fontSize(context, 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CertificatesScreen()),
+                      ).then((_) => _loadData());
+                    },
+                    child: const Text("View All", style: TextStyle(color: Colors.indigo)),
+                  ),
+                ],
+              ),
+
+              if (completedEvents.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: Text("No certificates yet")),
+                ),
+
+              for (var e in completedEvents.take(3)) certificateTile(e),
+
+              const SizedBox(height: 20),
             ],
           ),
           ),
@@ -693,6 +735,96 @@ class _DashboardHomeContentState extends State<DashboardHomeContent> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget certificateTile(EventItem event) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.amber.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.workspace_premium,
+              color: Colors.amber,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event.title,
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                    fontSize: ResponsiveHelper.fontSize(context, 14),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  event.date,
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withOpacity(0.55),
+                    fontSize: ResponsiveHelper.fontSize(context, 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: () async {
+              try {
+                await CertificateService.generateAndDownload(event);
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.download_rounded,
+                color: Colors.blueAccent,
+                size: ResponsiveHelper.iconSize(context, 20),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
