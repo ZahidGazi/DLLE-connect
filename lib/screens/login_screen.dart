@@ -102,6 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           await DataService.instance.saveLoginSession(identifier);
           DataService.instance.isLoggedIn = true;
+          DataService.instance.isAdmin = true;
           DataService.instance.studentId = identifier;
           DataService.instance.studentName = userData?['full_name'] ?? identifier;
         }

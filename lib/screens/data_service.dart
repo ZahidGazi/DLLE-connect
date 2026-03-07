@@ -133,6 +133,7 @@ class DataService {
   }
 
   bool isLoggedIn = false;
+  bool isAdmin = false;
   String studentName = "";
   String studentId = "";
   String studentCourse = "";
@@ -218,6 +219,7 @@ class DataService {
       debugPrint("Supabase signOut error (ignored): $e");
     }
     isLoggedIn = false;
+    isAdmin = false;
     studentName = "";
     studentId = "";
     studentCourse = "";
@@ -243,7 +245,8 @@ class DataService {
       );
       _events = (response as List).map((e) => EventItem.fromMap(e)).toList();
 
-      if (studentId.isNotEmpty) {
+      // Admin sees all events unfiltered — skip student-specific logic
+      if (studentId.isNotEmpty && !isAdmin) {
         final regs = await _withRetry(
           () => _supabase
               .from('event_registrations')
