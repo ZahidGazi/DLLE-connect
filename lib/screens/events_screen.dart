@@ -144,6 +144,7 @@ class _EventsScreenState extends State<EventsScreen> {
         ).then((_) => setState(() {}));
       },
       child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(16),
