@@ -905,6 +905,31 @@ class DataService {
     }
   }
 
+  /// Bulk-delete multiple students by their identifiers.
+  /// Deletes event registrations first, then user rows, then refreshes cache.
+  Future<void> deleteMultipleStudents(List<String> identifiers) async {
+    try {
+      for (final id in identifiers) {
+        await _withRetry(
+          () => _supabase
+              .from('event_registrations')
+              .delete()
+              .eq('student_id', id),
+        );
+        await _withRetry(
+          () => _supabase
+              .from('users')
+              .delete()
+              .eq('identifier', id),
+        );
+      }
+      await getAllStudents();
+    } catch (e) {
+      debugPrint("Error deleting multiple students: $e");
+      rethrow;
+    }
+  }
+
   Future<List<Student>> getAllStudents() async {
     try {
       final response = await _withRetry(

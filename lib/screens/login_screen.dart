@@ -77,6 +77,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final actualRole = userData?['role'] ?? 'student';
 
+        // Account was deleted by admin — block login
+        if (userData == null) {
+          await SupabaseService.signOut();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  "Your account has been removed. Please sign up again to continue.",
+                ),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+          return;
+        }
+
         if (actualRole != selectedRole) {
           await SupabaseService.signOut();
           if (mounted) {
@@ -89,14 +105,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
         String finalIdentifier = identifier;
         if (selectedRole == 'student' && identifier.contains('@')) {
-          finalIdentifier = userData?['identifier'] ?? identifier;
+          finalIdentifier = userData['identifier'] ?? identifier;
         }
 
         if (actualRole == 'student') {
           await DataService.instance.login(finalIdentifier);
         } else {
           DataService.instance.updateProfile(
-            name: userData?['full_name'] ?? identifier,
+            name: userData['full_name'] ?? identifier,
             id: identifier,
             course: 'Admin',
           );
@@ -104,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
           DataService.instance.isLoggedIn = true;
           DataService.instance.isAdmin = true;
           DataService.instance.studentId = identifier;
-          DataService.instance.studentName = userData?['full_name'] ?? identifier;
+          DataService.instance.studentName = userData['full_name'] ?? identifier;
         }
 
         if (mounted) {

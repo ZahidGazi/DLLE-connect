@@ -122,6 +122,7 @@ class Student {
   final String fullName;
   final String identifier;
   final String department;
+  final int yearOfStudy;
   int totalHours; // This will be calculated on the fly
   List<String> joinedEvents;
   List<String> completedEvents;
@@ -134,6 +135,7 @@ class Student {
     required this.fullName,
     required this.identifier,
     required this.department,
+    this.yearOfStudy = 1,
     this.totalHours = 0,
     List<String>? joinedEvents,
     List<String>? completedEvents,
@@ -145,6 +147,7 @@ class Student {
       fullName: map['full_name'] ?? 'No Name',
       identifier: map['identifier'] ?? 'No ID',
       department: map['department'] ?? 'No Department',
+      yearOfStudy: map['year_of_study'] ?? 1,
       // totalHours is now calculated in DataService.getAllStudents
     );
   }

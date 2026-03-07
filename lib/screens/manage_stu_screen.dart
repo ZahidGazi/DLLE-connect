@@ -21,7 +21,12 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
   String searchQuery = "";
   String selectedSort = "None";
   String selectedCourse = "All";
+  String selectedYear = "All";
   String selectedStatus = "All";
+
+  // Multi-select state
+  bool _isSelectionMode = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
@@ -51,11 +56,14 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                     .contains(searchQuery.toLowerCase());
         final matchesCourse =
             (selectedCourse == "All") || (student.department == selectedCourse);
+        final matchesYear =
+            (selectedYear == "All") ||
+            (student.yearOfStudy.toString() == selectedYear);
         bool isCompleted = student.totalHours >= 120;
         final matchesStatus = (selectedStatus == "All") ||
             (selectedStatus == "Completed" && isCompleted) ||
             (selectedStatus == "Ongoing" && !isCompleted);
-        return matchesSearch && matchesCourse && matchesStatus;
+        return matchesSearch && matchesCourse && matchesYear && matchesStatus;
       }).toList();
 
       if (selectedSort == "Low to High Hours") {
@@ -64,6 +72,94 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
         filteredStudents.sort((a, b) => b.totalHours.compareTo(a.totalHours));
       }
     });
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      if (!_isSelectionMode) _selectedIds.clear();
+    });
+  }
+
+  void _toggleStudentSelection(String identifier) {
+    setState(() {
+      if (_selectedIds.contains(identifier)) {
+        _selectedIds.remove(identifier);
+        if (_selectedIds.isEmpty) _isSelectionMode = false;
+      } else {
+        _selectedIds.add(identifier);
+      }
+    });
+  }
+
+  void _selectAll() {
+    setState(() {
+      if (_selectedIds.length == filteredStudents.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds.clear();
+        for (final s in filteredStudents) {
+          _selectedIds.add(s.identifier);
+        }
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedStudents() async {
+    if (_selectedIds.isEmpty) return;
+
+    final theme = Theme.of(context);
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.cardTheme.color,
+        title: Text("Remove $count Student${count > 1 ? 's' : ''}",
+            style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+        content: Text(
+          "Are you sure you want to remove $count student${count > 1 ? 's' : ''} from the system? "
+          "This will also delete their event registrations.\n\n"
+          "Removed students will need to sign up again to use the app.",
+          style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Remove",
+                style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await DataService.instance
+            .deleteMultipleStudents(_selectedIds.toList());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    "$count student${count > 1 ? 's' : ''} removed successfully")),
+          );
+          setState(() {
+            _selectedIds.clear();
+            _isSelectionMode = false;
+          });
+          _loadStudents();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e")),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _deleteStudent(Student student) async {
@@ -76,7 +172,8 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
             style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
         content: Text(
           "Are you sure you want to remove ${student.fullName} from the system? "
-          "This will also delete their event registrations.",
+          "This will also delete their event registrations.\n\n"
+          "The student will need to sign up again to use the app.",
           style: TextStyle(color: theme.textTheme.bodyMedium?.color),
         ),
         actions: [
@@ -133,17 +230,61 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
       ...allStudents.map((s) => s.department).toSet()
     ];
 
+    // Collect distinct years from students
+    final List<String> years = [
+      "All",
+      ...allStudents
+          .map((s) => s.yearOfStudy.toString())
+          .toSet()
+          .toList()
+        ..sort(),
+    ];
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Manage Students"),
+        title: _isSelectionMode
+            ? Text("${_selectedIds.length} Selected")
+            : const Text("Manage Students"),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadStudents,
-          ),
-        ],
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _toggleSelectionMode,
+              )
+            : null,
+        actions: _isSelectionMode
+            ? [
+                IconButton(
+                  icon: Icon(
+                    _selectedIds.length == filteredStudents.length
+                        ? Icons.deselect
+                        : Icons.select_all,
+                  ),
+                  tooltip: _selectedIds.length == filteredStudents.length
+                      ? "Deselect All"
+                      : "Select All",
+                  onPressed: _selectAll,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  tooltip: "Delete Selected",
+                  onPressed: _selectedIds.isEmpty
+                      ? null
+                      : _deleteSelectedStudents,
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.checklist_rtl),
+                  tooltip: "Select Multiple",
+                  onPressed: _toggleSelectionMode,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _loadStudents,
+                ),
+              ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -223,6 +364,29 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                   PopupMenuButton<String>(
                     color: cardColor,
                     onSelected: (val) {
+                      selectedYear = val;
+                      _applyFilters();
+                    },
+                    itemBuilder: (_) => years
+                        .map((year) => PopupMenuItem<String>(
+                              value: year,
+                              child: Text(
+                                  year == "All" ? "All Years" : "Year $year",
+                                  style: TextStyle(color: textColor)),
+                            ))
+                        .toList(),
+                    child: _filterChip(
+                        selectedYear == "All"
+                            ? "Year: All"
+                            : "Year: $selectedYear",
+                        selectedYear != "All",
+                        cardColor,
+                        textColor),
+                  ),
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    color: cardColor,
+                    onSelected: (val) {
                       selectedStatus = val;
                       _applyFilters();
                     },
@@ -273,7 +437,8 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
     if (cols == 1) {
       return ListView.builder(
         itemCount: filteredStudents.length,
-        itemBuilder: (context, index) => _studentCard(context, filteredStudents[index]),
+        itemBuilder: (context, index) =>
+            _studentCard(context, filteredStudents[index]),
       );
     }
     return GridView.builder(
@@ -284,7 +449,8 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
         childAspectRatio: 1.3,
       ),
       itemCount: filteredStudents.length,
-      itemBuilder: (context, index) => _studentCard(context, filteredStudents[index]),
+      itemBuilder: (context, index) =>
+          _studentCard(context, filteredStudents[index]),
     );
   }
 
@@ -308,7 +474,9 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
           ),
           const SizedBox(width: 4),
           Icon(Icons.arrow_drop_down,
-              color: isActive ? Colors.blueAccent : textColor?.withOpacity(0.6),
+              color: isActive
+                  ? Colors.blueAccent
+                  : textColor?.withOpacity(0.6),
               size: 18),
         ],
       ),
@@ -328,8 +496,14 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
     String statusText = isCompleted ? "Completed" : "Ongoing";
     double progress = (student.totalHours / 120).clamp(0.0, 1.0);
 
+    final isSelected = _selectedIds.contains(student.identifier);
+
     return GestureDetector(
       onTap: () async {
+        if (_isSelectionMode) {
+          _toggleStudentSelection(student.identifier);
+          return;
+        }
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
@@ -338,23 +512,48 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
         );
         if (result == true) _loadStudents();
       },
+      onLongPress: () {
+        if (!_isSelectionMode) {
+          setState(() => _isSelectionMode = true);
+        }
+        _toggleStudentSelection(student.identifier);
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: cardColor,
+          color: isSelected
+              ? Colors.blueAccent.withOpacity(0.08)
+              : cardColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor),
+          border: Border.all(
+            color: isSelected ? Colors.blueAccent : borderColor,
+            width: isSelected ? 1.5 : 1.0,
+          ),
         ),
         child: Column(
           children: [
             Row(
               children: [
-                const CircleAvatar(
-                  radius: 22,
-                  backgroundColor: Colors.grey,
-                  child: Icon(Icons.person, color: Colors.white),
-                ),
+                // Checkbox / Avatar
+                if (_isSelectionMode)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Checkbox(
+                      value: isSelected,
+                      onChanged: (_) =>
+                          _toggleStudentSelection(student.identifier),
+                      activeColor: Colors.blueAccent,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4)),
+                    ),
+                  )
+                else
+                  const CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.grey,
+                    child: Icon(Icons.person, color: Colors.white),
+                  ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -369,19 +568,22 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                         ),
                       ),
                       Text(
-                        "ID: ${student.identifier} • ${student.department}",
-                        style: TextStyle(color: subTextColor, fontSize: 13),
+                        "ID: ${student.identifier} • ${student.department} • Year ${student.yearOfStudy}",
+                        style:
+                            TextStyle(color: subTextColor, fontSize: 13),
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      color: Colors.redAccent, size: 20),
-                  onPressed: () => _deleteStudent(student),
-                ),
-                Icon(Icons.arrow_forward_ios,
-                    color: subTextColor, size: 16),
+                if (!_isSelectionMode) ...[
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline,
+                        color: Colors.redAccent, size: 20),
+                    onPressed: () => _deleteStudent(student),
+                  ),
+                  Icon(Icons.arrow_forward_ios,
+                      color: subTextColor, size: 16),
+                ],
               ],
             ),
 
@@ -392,8 +594,8 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -410,12 +612,14 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
                 const Spacer(),
                 RichText(
                   text: TextSpan(
-                    style: TextStyle(color: subTextColor, fontSize: 13),
+                    style:
+                        TextStyle(color: subTextColor, fontSize: 13),
                     children: [
                       TextSpan(
                         text: "${student.totalHours}",
                         style: TextStyle(
-                          color: isCompleted ? Colors.green : textColor,
+                          color:
+                              isCompleted ? Colors.green : textColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -433,7 +637,8 @@ class _ManageStudentsScreenState extends State<ManageStudentsScreen> {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: borderColor,
-                valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(statusColor),
                 minHeight: 6,
               ),
             ),
